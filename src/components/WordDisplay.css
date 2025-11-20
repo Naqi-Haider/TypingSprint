@@ -1,0 +1,143 @@
+.word-display-container {
+  width: 100%;
+  max-width: 1000px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.words-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+}
+
+.word-item {
+  position: absolute;
+  flex-shrink: 0;
+  font-size: 2.5rem;
+  font-weight: 600;
+  font-family: var(--font-primary);
+  letter-spacing: 0.1rem;
+  transition: all var(--transition-normal);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.word-item.past {
+  color: var(--text-muted);
+}
+
+.word-item.future {
+  color: var(--text-secondary);
+}
+
+.word-item.active {
+  color: var(--text-primary);
+  z-index: 10;
+}
+
+/* Shake animation for errors */
+.word-item.shake {
+  animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
+}
+
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-8px);
+  }
+
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(8px);
+  }
+}
+
+.word-text {
+  white-space: nowrap;
+}
+
+.word-chars {
+  display: flex;
+  gap: 0.1rem;
+}
+
+.char {
+  color: var(--text-muted);
+  transition: color var(--transition-fast);
+  position: relative;
+  display: inline-block;
+}
+
+.char.current {
+  color: var(--text-primary);
+}
+
+.char.current::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent-primary);
+  border-radius: 1px;
+}
+
+.char.correct {
+  color: var(--success);
+}
+
+.char.incorrect {
+  color: var(--error);
+  background: rgba(255, 68, 68, 0.15);
+  padding: 0 0.15rem;
+  border-radius: 3px;
+}
+
+/* Input Display */
+.input-display {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  text-align: center;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-primary);
+}
+
+@media (max-width: 768px) {
+  .word-item {
+    font-size: 1.8rem;
+    letter-spacing: 0.05rem;
+  }
+
+  .input-display {
+    font-size: 1rem;
+    padding: var(--spacing-xs) var(--spacing-md);
+  }
+}
