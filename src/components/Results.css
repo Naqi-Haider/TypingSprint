@@ -15,6 +15,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
+  background: #0d140d;
+  border: 2px solid #4e8c43;
 }
 
 .results-header {
@@ -49,6 +51,8 @@
   align-items: center;
   gap: var(--spacing-sm);
   transition: transform var(--transition-normal);
+  background: rgba(78, 140, 67, 0.1);
+  border: 1px solid #4e8c43;
 }
 
 .stat-card:hover {
@@ -99,11 +103,12 @@
   letter-spacing: 2px;
   align-self: center;
   min-width: 200px;
+  background: var(--accent-primary);
 }
 
 .restart-button:hover {
   transform: scale(1.02);
-  border-color: var(--accent-primary);
+  background: var(--accent-secondary);
 }
 
 .restart-button:active {

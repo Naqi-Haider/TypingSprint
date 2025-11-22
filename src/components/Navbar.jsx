@@ -11,10 +11,7 @@ const Navbar = ({ onLogoClick, bestWPM }) => {
           <AnimatedLogo />
         </div>
         <div className="nav-stats">
-          <div className="stat-badge glass">
-            <span className="stat-label">Best WPM</span>
-            <span className="stat-value">{bestWPM}</span>
-          </div>
+          <span className="best-wpm-text">Best WPM: <span className="wpm-value">{bestWPM}</span></span>
         </div>
       </div>
     </nav>

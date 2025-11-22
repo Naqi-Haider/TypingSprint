@@ -1,0 +1,33 @@
+.ripple-cursor-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 9999;
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(242, 247, 228, 0.2);
+  box-shadow:
+    0 0 8px rgba(242, 247, 228, 0.3),
+    0 0 15px rgba(96, 147, 77, 0.2);
+  animation: ripple-animation forwards;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes ripple-animation {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(-50%, -50%) scale(2.5);
+    opacity: 0;
+  }
+}

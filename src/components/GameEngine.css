@@ -133,27 +133,104 @@
   font-family: var(--font-primary);
 }
 
+/* Timer Display - Centered with contrast */
 .timer-display {
   position: absolute;
   top: var(--spacing-lg);
-  right: var(--spacing-lg);
+  left: 50%;
+  transform: translateX(-50%);
   font-size: 2rem;
-  font-weight: 800;
-  font-family: var(--font-display);
-  color: var(--accent-primary);
+  font-weight: 700;
+  font-family: var(--font-primary);
+  color: var(--text-primary);
   padding: var(--spacing-xs) var(--spacing-md);
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  background: rgba(13, 20, 13, 0.9);
+  border: 2px solid #4e8c43;
   border-radius: 8px;
-  backdrop-filter: blur(10px);
+  text-align: center;
+  min-width: 80px;
+  transition: all var(--transition-normal);
+  box-shadow: 0 2px 8px rgba(78, 140, 67, 0.4);
 }
 
 .timer-display.warning {
   color: var(--warning);
+  border-color: var(--warning);
+  animation: pulse 1s infinite;
 }
 
 .timer-display.danger {
   color: var(--error);
+  border-color: var(--error);
+  animation: pulse 0.5s infinite;
+}
+
+.timer-display.penalty {
+  animation: shake 0.3s ease-in-out;
+}
+
+.penalty-indicator {
+  position: absolute;
+  top: -22px;
+  right: -35px;
+  background: #ff4444;
+  color: #ffffff;
+  font-size: 1.3rem;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: 8px;
+  box-shadow: 0 3px 12px rgba(255, 68, 68, 0.6);
+  animation: penaltyPop 0.5s ease-out;
+  z-index: 100;
+  white-space: nowrap;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+@keyframes penaltyPop {
+  0% {
+    transform: scale(0) rotate(-15deg);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.2) rotate(5deg);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: translateX(-50%) scale(1.05);
+  }
+}
+
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(-50%);
+  }
+
+  25% {
+    transform: translateX(calc(-50% - 8px));
+  }
+
+  75% {
+    transform: translateX(calc(-50% + 8px));
+  }
 }
 
 .input-display {
@@ -221,7 +298,6 @@
   .timer-display {
     font-size: 1.5rem;
     top: var(--spacing-sm);
-    right: var(--spacing-sm);
   }
 
   .error-prompt {
@@ -244,5 +320,10 @@
 
   .stat .stat-value {
     font-size: 1.5rem;
+  }
+
+  .penalty-indicator {
+    font-size: 1.1rem;
+    padding: 4px 10px;
   }
 }

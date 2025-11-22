@@ -84,17 +84,21 @@ const WORD_BANK = [
 const GAME_DURATION = 60; // 60 seconds
 const VISIBLE_WORDS = 8; // Increased lookahead - show more words
 
-const GameEngine = ({ onBestWPMUpdate }) => {
+const GameEngine = ({ onBestWPMUpdate, autoStart = false }) => {
   const [gameState, setGameState] = useState('idle'); // idle, playing, finished
   const [words, setWords] = useState([]);
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [userInput, setUserInput] = useState('');
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [totalWords, setTotalWords] = useState(0);
-  const [correctWords, setCorrectWords] = useState(0);
+  const [mistakes, setMistakes] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [shakeWord, setShakeWord] = useState(false);
+  const [totalCharacters, setTotalCharacters] = useState(0);
+  const [incorrectCharacters, setIncorrectCharacters] = useState(0);
+  const [showPenalty, setShowPenalty] = useState(false);
+  const [errorCharIndex, setErrorCharIndex] = useState(-1);
 
   // Get random unique word
   const getRandomWord = useCallback((usedWords = []) => {
@@ -123,11 +127,20 @@ const GameEngine = ({ onBestWPMUpdate }) => {
     setUserInput('');
     setTimeLeft(GAME_DURATION);
     setTotalWords(0);
-    setCorrectWords(0);
+    setMistakes(0);
     setHasError(false);
     setErrorMessage('');
     setShakeWord(false);
+    setTotalCharacters(0);
+    setIncorrectCharacters(0);
   }, [generateWords]);
+
+  // Auto-start effect
+  useEffect(() => {
+    if (autoStart && gameState === 'idle') {
+      startGame();
+    }
+  }, [autoStart, gameState, startGame]);
 
   // Timer effect
   useEffect(() => {
@@ -139,7 +152,7 @@ const GameEngine = ({ onBestWPMUpdate }) => {
     } else if (timeLeft === 0 && gameState === 'playing') {
       setGameState('finished');
       // Update best WPM
-      const currentWPM = Math.round(correctWords / (GAME_DURATION / 60));
+      const currentWPM = Math.round(totalWords / (GAME_DURATION / 60));
       const bestWPM = parseInt(localStorage.getItem('bestWPM') || '0');
       if (currentWPM > bestWPM) {
         localStorage.setItem('bestWPM', currentWPM.toString());
@@ -149,7 +162,7 @@ const GameEngine = ({ onBestWPMUpdate }) => {
         }
       }
     }
-  }, [gameState, timeLeft, correctWords, onBestWPMUpdate]);
+  }, [gameState, timeLeft, totalWords, onBestWPMUpdate]);
 
   // Handle keyboard input
   useEffect(() => {
@@ -171,7 +184,6 @@ const GameEngine = ({ onBestWPMUpdate }) => {
 
         // Only allow moving to next word if current word is complete and correct
         if (userInput === currentWord) {
-          setCorrectWords((prev) => prev + 1);
           setTotalWords((prev) => prev + 1);
           setCurrentWordIndex((prev) => prev + 1);
           setUserInput('');
@@ -185,15 +197,19 @@ const GameEngine = ({ onBestWPMUpdate }) => {
             return [...prev, getRandomWord(usedWords)];
           });
         } else {
-          // Show error - word not complete or incorrect
+          // Mistake: incomplete word
+          setMistakes((prev) => prev + 1);
+          setShowPenalty(true);
+          setTimeout(() => {
+            setTimeLeft((prev) => Math.max(0, prev - 1)); // 1 second penalty
+            setShowPenalty(false);
+          }, 100);
           setHasError(true);
           setShakeWord(true);
-          setErrorMessage('Complete the word correctly!');
           setTimeout(() => {
             setHasError(false);
-            setErrorMessage('');
             setShakeWord(false);
-          }, 1000);
+          }, 500);
         }
       } else {
         // STRICT TYPING: Only allow the character if it matches the next expected character
@@ -203,19 +219,26 @@ const GameEngine = ({ onBestWPMUpdate }) => {
         if (e.key === expectedChar) {
           // Correct character - allow it
           setUserInput(userInput + e.key);
+          setTotalCharacters((prev) => prev + 1);
           setHasError(false);
-          setErrorMessage('');
+          setErrorCharIndex(-1);
           setShakeWord(false);
         } else {
-          // Wrong character - block it and show error with shake
+          // Mistake: wrong character
+          setMistakes((prev) => prev + 1);
+          setShowPenalty(true);
+          setTimeout(() => {
+            setTimeLeft((prev) => Math.max(0, prev - 1)); // 1 second penalty
+            setShowPenalty(false);
+          }, 100);
           setHasError(true);
-          setShakeWord(true);
-          setErrorMessage(`Wrong key! Expected: "${expectedChar}"`);
+          setErrorCharIndex(nextCharIndex);
+          setIncorrectCharacters((prev) => prev + 1);
+          setTotalCharacters((prev) => prev + 1);
           setTimeout(() => {
             setHasError(false);
-            setErrorMessage('');
-            setShakeWord(false);
-          }, 800);
+            setErrorCharIndex(-1);
+          }, 500);
         }
       }
     };
@@ -226,8 +249,9 @@ const GameEngine = ({ onBestWPMUpdate }) => {
 
   // Calculate WPM and accuracy
   const calculateStats = () => {
-    const wpm = Math.round(correctWords / (GAME_DURATION / 60));
-    const accuracy = totalWords > 0 ? Math.round((correctWords / totalWords) * 100) : 0;
+    const minutes = GAME_DURATION / 60;
+    const wpm = Math.round(totalWords / minutes);
+    const accuracy = totalCharacters > 0 ? Math.round(((totalCharacters - incorrectCharacters) / totalCharacters) * 100) : 100;
     return { wpm, accuracy };
   };
 
@@ -238,10 +262,10 @@ const GameEngine = ({ onBestWPMUpdate }) => {
     return '';
   };
 
-  // Get visible words for display
+  // Get visible words for display - show 3 words on each side
   const visibleWords = words.slice(
-    Math.max(0, currentWordIndex - 1),
-    currentWordIndex + VISIBLE_WORDS
+    Math.max(0, currentWordIndex - 3),
+    currentWordIndex + 4  // Current word + 3 ahead
   );
 
   return (
@@ -266,24 +290,25 @@ const GameEngine = ({ onBestWPMUpdate }) => {
 
         {gameState === 'playing' && (
           <div className="game-screen" key="game">
-            <div className={`timer-display ${getTimerClass()}`}>
+            <div className={`timer-display ${getTimerClass()} ${showPenalty ? 'penalty' : ''}`}>
               {timeLeft}s
+              {showPenalty && <span className="penalty-indicator">-1</span>}
             </div>
 
-            {/* Error Message Display */}
-            {hasError && errorMessage && (
+            {/* Error Message Display - Removed, using character-level highlighting instead */}
+            {/* {hasError && errorMessage && (
               <div className="error-prompt">
                 <span className="error-icon">⚠</span>
                 <span className="error-text">{errorMessage}</span>
               </div>
-            )}
+            )} */}
 
             <WordDisplay
               words={visibleWords}
-              currentWordIndex={Math.min(1, currentWordIndex)}
+              currentWordIndex={Math.min(3, currentWordIndex)}  // Adjust for the slice offset
               userInput={userInput}
               hasError={hasError}
-              shakeWord={shakeWord}
+              errorCharIndex={errorCharIndex}
             />
 
             <div className="input-display">
@@ -296,8 +321,8 @@ const GameEngine = ({ onBestWPMUpdate }) => {
                 <span className="stat-value">{totalWords}</span>
               </div>
               <div className="stat">
-                <span className="stat-label">Correct</span>
-                <span className="stat-value">{correctWords}</span>
+                <span className="stat-label">Mistakes</span>
+                <span className="stat-value">{mistakes}</span>
               </div>
             </div>
           </div>
@@ -308,7 +333,7 @@ const GameEngine = ({ onBestWPMUpdate }) => {
             key="results"
             {...calculateStats()}
             totalWords={totalWords}
-            correctWords={correctWords}
+            mistakes={mistakes}
             onRestart={startGame}
           />
         )}
