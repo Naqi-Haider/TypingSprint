@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import './Results.css';
 
-const Results = ({ wpm, accuracy, totalWords, mistakes, onRestart }) => {
+const Results = ({ wpm, accuracy, totalWords, mistakes, onRestart, onGoHome }) => {
   return (
     <motion.div
       className="results-container"
@@ -50,16 +50,31 @@ const Results = ({ wpm, accuracy, totalWords, mistakes, onRestart }) => {
           </div>
         </div>
 
-        <button
-          className="restart-button glass"
-          onClick={onRestart}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span>Play Again</span>
-        </button>
+        <div className="results-buttons">
+          <button
+            className="restart-button glass"
+            onClick={onRestart}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span>Play Again</span>
+          </button>
+
+          {onGoHome && (
+            <button
+              className="home-button glass"
+              onClick={onGoHome}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points="9 22 9 12 15 12 15 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>Go to Home</span>
+            </button>
+          )}
+        </div>
       </div>
     </motion.div>
   );
