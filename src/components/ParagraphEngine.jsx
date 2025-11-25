@@ -4,10 +4,19 @@ import ParagraphResults from './ParagraphResults';
 import { getRandomParagraph, getNextDifficulty, DIFFICULTY_CONFIG } from '../data/ParagraphBank';
 import './ParagraphEngine.css';
 
-const BASE_TIME = 20; // 20 seconds base time per paragraph
+const BASE_TIME = 50;
+
+// Combo thresholds based on correct words per minute
+const COMBO_LEVELS = {
+  START: { min: 0, max: 0, label: 'START', color: '#888' },
+  NORMAL: { min: 1, max: 20, label: 'NORMAL', color: '#4e8c43' },
+  GOOD: { min: 21, max: 40, label: 'GOOD', color: '#6ba85e' },
+  PERFECT: { min: 41, max: 60, label: 'PERFECT', color: '#f39c12' },
+  EXCELLENT: { min: 61, max: Infinity, label: 'EXCELLENT', color: '#e74c3c' }
+};
 
 const ParagraphEngine = ({ onGoHome, autoStart = false }) => {
-  const [gameState, setGameState] = useState('idle'); // idle, playing, finished
+  const [gameState, setGameState] = useState('idle');
   const [difficulty, setDifficulty] = useState('easy');
   const [currentParagraph, setCurrentParagraph] = useState('');
   const [userInput, setUserInput] = useState('');
@@ -17,11 +26,12 @@ const ParagraphEngine = ({ onGoHome, autoStart = false }) => {
   const [paragraphsCompleted, setParagraphsCompleted] = useState(0);
   const [totalErrors, setTotalErrors] = useState(0);
   const [totalCharacters, setTotalCharacters] = useState(0);
+  const [correctWords, setCorrectWords] = useState(0);
   const [startTime, setStartTime] = useState(null);
   const [usedParagraphs, setUsedParagraphs] = useState([]);
+  const [comboLevel, setComboLevel] = useState('START');
   const inputRef = useRef(null);
 
-  // Start game
   const startGame = useCallback(() => {
     const firstParagraph = getRandomParagraph('easy', []);
     setCurrentParagraph(firstParagraph);
@@ -32,23 +42,21 @@ const ParagraphEngine = ({ onGoHome, autoStart = false }) => {
     setParagraphsCompleted(0);
     setTotalErrors(0);
     setTotalCharacters(0);
+    setCorrectWords(0);
     setDifficulty('easy');
     setUsedParagraphs([firstParagraph]);
     setStartTime(Date.now());
+    setComboLevel('START');
     setGameState('playing');
-
-    // Focus input
     setTimeout(() => inputRef.current?.focus(), 100);
   }, []);
 
-  // Auto-start if specified
   useEffect(() => {
     if (autoStart && gameState === 'idle') {
       startGame();
     }
   }, [autoStart, gameState, startGame]);
 
-  // Timer effect
   useEffect(() => {
     if (gameState === 'playing' && timeLeft > 0) {
       const timer = setInterval(() => {
@@ -64,64 +72,84 @@ const ParagraphEngine = ({ onGoHome, autoStart = false }) => {
     }
   }, [gameState]);
 
-  // Handle paragraph completion
+  // Calculate combo level based on correct words per minute
+  useEffect(() => {
+    if (gameState === 'playing' && startTime) {
+      const elapsedMinutes = (Date.now() - startTime) / 60000;
+      if (elapsedMinutes > 0) {
+        const correctWPM = correctWords / elapsedMinutes;
+
+        let newCombo = 'START';
+        for (const [level, config] of Object.entries(COMBO_LEVELS)) {
+          if (correctWPM >= config.min && correctWPM <= config.max) {
+            newCombo = level;
+            break;
+          }
+        }
+        setComboLevel(newCombo);
+      }
+    }
+  }, [correctWords, startTime, gameState]);
+
   const handleParagraphComplete = useCallback(() => {
     const bonus = timeLeft;
     setBonusTime(bonus);
     setShowBonus(true);
-
-    // Hide bonus indicator after 2 seconds
     setTimeout(() => setShowBonus(false), 2000);
 
     const newCompletedCount = paragraphsCompleted + 1;
     setParagraphsCompleted(newCompletedCount);
 
-    // Determine next difficulty
     const nextDiff = getNextDifficulty(newCompletedCount);
     setDifficulty(nextDiff);
 
-    // Get next paragraph
     const nextParagraph = getRandomParagraph(nextDiff, usedParagraphs);
     setCurrentParagraph(nextParagraph);
     setUsedParagraphs(prev => [...prev, nextParagraph]);
 
-    // Reset for next paragraph with bonus
     setTimeLeft(BASE_TIME + bonus);
     setUserInput('');
-
-    // Refocus input
     setTimeout(() => inputRef.current?.focus(), 100);
   }, [timeLeft, paragraphsCompleted, usedParagraphs]);
 
-  // Handle input change
   const handleInputChange = (e) => {
     if (gameState !== 'playing') return;
 
     const input = e.target.value;
     const currentLength = input.length;
 
-    // Track total characters typed
     if (currentLength > userInput.length) {
       setTotalCharacters(prev => prev + 1);
 
-      // Check if character is correct
       const lastChar = input[currentLength - 1];
       const expectedChar = currentParagraph[currentLength - 1];
 
       if (lastChar !== expectedChar) {
         setTotalErrors(prev => prev + 1);
       }
+
+      // Check for completed words (space or end of paragraph)
+      if (lastChar === ' ' || input === currentParagraph) {
+        const words = input.trim().split(/\s+/);
+        const expectedWords = currentParagraph.substring(0, currentLength).trim().split(/\s+/);
+
+        let correct = 0;
+        for (let i = 0; i < words.length; i++) {
+          if (words[i] === expectedWords[i]) {
+            correct++;
+          }
+        }
+        setCorrectWords(correct);
+      }
     }
 
     setUserInput(input);
 
-    // Check if paragraph is complete
     if (input === currentParagraph) {
       handleParagraphComplete();
     }
   };
 
-  // Get character class for styling
   const getCharClass = (index) => {
     if (index < userInput.length) {
       return userInput[index] === currentParagraph[index]
@@ -134,7 +162,6 @@ const ParagraphEngine = ({ onGoHome, autoStart = false }) => {
     return 'char-pending';
   };
 
-  // Calculate stats for results
   const calculateStats = () => {
     const totalTime = startTime ? (Date.now() - startTime) / 1000 : 0;
     const successRate = totalCharacters > 0
@@ -189,6 +216,7 @@ const ParagraphEngine = ({ onGoHome, autoStart = false }) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
           >
+            {/* Header */}
             <div className="paragraph-header">
               <div
                 className="difficulty-badge"
@@ -217,42 +245,52 @@ const ParagraphEngine = ({ onGoHome, autoStart = false }) => {
               )}
             </div>
 
-            <div className="paragraph-display">
-              {currentParagraph.split('').map((char, index) => (
-                <span key={index} className={getCharClass(index)}>
-                  {char}
-                </span>
-              ))}
-            </div>
-
-            <input
-              ref={inputRef}
-              type="text"
-              className="paragraph-input"
-              value={userInput}
-              onChange={handleInputChange}
-              placeholder="Start typing..."
-              autoFocus
-            />
-
-            <div className="stats-bar">
-              <div className="stat-item">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" />
-                  <line x1="7" y1="8" x2="17" y2="8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  <line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  <line x1="7" y1="16" x2="13" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-                <span>Paragraphs: {paragraphsCompleted}</span>
+            {/* Main Content */}
+            <div className="paragraph-main-content">
+              {/* Paragraph Display */}
+              <div className="paragraph-display-section">
+                <div className="paragraph-text">
+                  {currentParagraph.split('').map((char, index) => (
+                    <span key={index} className={getCharClass(index)}>
+                      {char}
+                    </span>
+                  ))}
+                </div>
               </div>
 
-              <div className="stat-item">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" strokeWidth="2" />
-                  <line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-                <span>Errors: {totalErrors}</span>
+              {/* Hidden Input */}
+              <input
+                ref={inputRef}
+                type="text"
+                className="hidden-input"
+                value={userInput}
+                onChange={handleInputChange}
+                autoFocus
+              />
+
+              {/* Combo Status */}
+              <motion.div
+                className="combo-status"
+                key={comboLevel}
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                style={{ color: COMBO_LEVELS[comboLevel].color }}
+              >
+                {COMBO_LEVELS[comboLevel].label}
+              </motion.div>
+
+              {/* Stats Bar */}
+              <div className="stats-bar-compact">
+                <div className="stat-compact">
+                  <span className="stat-label-compact">Paragraphs:</span>
+                  <span className="stat-value-compact">{paragraphsCompleted}</span>
+                </div>
+                <div className="stat-divider"></div>
+                <div className="stat-compact">
+                  <span className="stat-label-compact">Mistakes:</span>
+                  <span className="stat-value-compact">{totalErrors}</span>
+                </div>
               </div>
             </div>
           </motion.div>

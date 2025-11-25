@@ -5,6 +5,17 @@
   background: var(--bg-primary);
 }
 
+body,
+button,
+a,
+input,
+select,
+textarea,
+[tabindex="0"],
+[role="button"] {
+  cursor: url('/src/assets/cursor-3-32.png'), auto !important;
+}
+
 .main-content {
   flex: 1;
   display: flex;
