@@ -1,8 +1,9 @@
 import './Navbar.css';
 import AnimatedLogo from './AnimatedLogo';
 import keyboardIcon from '../assets/keyboard.svg';
+import { NavbarAuth } from './AuthSystem';
 
-const Navbar = ({ onLogoClick, bestWPM }) => {
+const Navbar = ({ onLogoClick }) => {
   return (
     <nav className="navbar glass">
       <div className="navbar-content">
@@ -10,9 +11,7 @@ const Navbar = ({ onLogoClick, bestWPM }) => {
           <img src={keyboardIcon} alt="Keyboard" className="logo-icon" />
           <AnimatedLogo />
         </div>
-        <div className="nav-stats">
-          <span className="best-wpm-text">Best WPM: <span className="wpm-value">{bestWPM}</span></span>
-        </div>
+        <NavbarAuth />
       </div>
     </nav>
   );

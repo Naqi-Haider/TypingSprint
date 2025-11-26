@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import './HomePage.css';
 import TypewriterText from './TypewriterText';
+import HeroTypewriter from './HeroTypewriter';
 
 const HomePage = ({ onStartGame }) => {
   const modesSectionRef = useRef(null);
@@ -25,15 +26,27 @@ const HomePage = ({ onStartGame }) => {
         <div className="hero-content">
           <div className="hero-text">
             <h1 className="hero-title">Ready to Sprint?</h1>
-            <p className="hero-description">
-              Type the words as fast as you can. You have 60 seconds!
-            </p>
-            <button className="cta-button" onClick={scrollToModes}>
+            <div className="hero-typewriter-container">
+              <HeroTypewriter 
+                strings={[
+                  'Dominate the 60-second Speed-Bullet Challenge.',
+                  'Climb the Difficulty Tiers in Paragraph Mode.',
+                  'Build Perfect Streaks and Ignite Your Combo Meter.',
+                  'Test your WPM against the clock.'
+                ]}
+                typingSpeed={50}
+                deletingSpeed={30}
+                pauseDuration={1500}
+              />
+            </div>
+            <div className="hero-cta-wrapper">
+              <button className="cta-button" onClick={scrollToModes}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" />
               </svg>
               <span>Start Typing</span>
-            </button>
+              </button>
+            </div>
           </div>
 
           <div className="hero-divider"></div>

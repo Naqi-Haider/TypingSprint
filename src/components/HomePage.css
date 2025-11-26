@@ -76,6 +76,19 @@
   line-height: 1.2;
 }
 
+.hero-typewriter-container {
+  min-height: 80px;
+  height: 80px;
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-md);
+  overflow: hidden;
+}
+
+.hero-cta-wrapper {
+  margin-top: var(--spacing-sm);
+}
+
 .hero-description {
   font-size: 1.1rem;
   color: var(--text-secondary);
@@ -192,7 +205,8 @@
   gap: var(--spacing-lg);
   margin-top: var(--spacing-md);
   padding: 0;
-  align-items: start;
+  align-items: stretch;
+  /* Changed from 'start' */
 }
 
 .mode-card {
@@ -202,6 +216,12 @@
   padding: var(--spacing-lg);
   text-align: left;
   transition: all var(--transition-normal);
+  display: flex;
+  /* Added */
+  flex-direction: column;
+  /* Added */
+  min-height: 320px;
+  /* Added */
 }
 
 .mode-card:hover {

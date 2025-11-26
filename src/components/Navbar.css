@@ -20,6 +20,7 @@
   align-items: center;
   gap: var(--spacing-sm);
   transition: opacity var(--transition-normal);
+  cursor: url('/src/assets/hand-cursor-24.png'), pointer !important;
 }
 
 .logo:hover {
@@ -32,25 +33,6 @@
   filter: brightness(1.2);
 }
 
-.nav-stats {
-  display: flex;
-  gap: var(--spacing-md);
-}
-
-.best-wpm-text {
-  font-family: var(--font-primary);
-  font-size: 0.95rem;
-  color: var(--text-secondary);
-  letter-spacing: 0.5px;
-}
-
-.wpm-value {
-  font-family: var(--font-display);
-  font-weight: 700;
-  color: var(--accent-primary);
-  margin-left: 0.25rem;
-}
-
 @media (max-width: 768px) {
   .navbar {
     padding: 0.7rem var(--spacing-sm);
@@ -59,9 +41,5 @@
   .logo-icon {
     width: 24px;
     height: 24px;
-  }
-
-  .best-wpm-text {
-    font-size: 0.85rem;
   }
 }

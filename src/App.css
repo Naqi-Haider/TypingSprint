@@ -5,15 +5,15 @@
   background: var(--bg-primary);
 }
 
-body,
+body {
+  cursor: url('/src/assets/cursor-3-24.png'), auto !important;
+}
+
 button,
 a,
-input,
-select,
-textarea,
-[tabindex="0"],
-[role="button"] {
-  cursor: url('/src/assets/cursor-3-32.png'), auto !important;
+[role="button"],
+[tabindex="0"] {
+  cursor: url('/src/assets/hand-cursor-24.png'), pointer !important;
 }
 
 .main-content {

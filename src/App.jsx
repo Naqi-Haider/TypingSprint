@@ -5,12 +5,14 @@ import GameEngine from './components/GameEngine';
 import ParagraphEngine from './components/ParagraphEngine';
 import HomePage from './components/HomePage';
 import RippleCursor from './components/RippleCursor';
+import TerminalLoader from './components/TerminalLoader';
+import { AuthProvider, AuthModal } from './components/AuthSystem';
 
 function App() {
   const [resetKey, setResetKey] = useState(0);
-  const [bestWPM, setBestWPM] = useState(localStorage.getItem('bestWPM') || '--');
-  const [currentView, setCurrentView] = useState('home'); // 'home' or 'game'
+  const [currentView, setCurrentView] = useState('home'); // 'home', 'loading', or 'game'
   const [gameMode, setGameMode] = useState(null); // 'speed-bullet' or 'paragraph'
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -27,31 +29,36 @@ function App() {
   const handleLogoClick = () => {
     // Return to home page
     setCurrentView('home');
+    setIsLoading(false);
     setResetKey(prev => prev + 1);
   };
 
   const handleStartGame = (mode) => {
     setGameMode(mode);
+    setIsLoading(true);
+    setCurrentView('loading');
+  };
+
+  const handleLoadingComplete = () => {
+    setIsLoading(false);
     setCurrentView('game');
   };
 
-  const handleBestWPMUpdate = (newBestWPM) => {
-    setBestWPM(newBestWPM.toString());
-  };
-
   return (
-    <>
+    <AuthProvider>
+      <AuthModal />
       <RippleCursor maxSize={30} duration={800} blur={true} />
       <div className="app">
-        <Navbar onLogoClick={handleLogoClick} bestWPM={bestWPM} />
+        <Navbar onLogoClick={handleLogoClick} />
         <main className="main-content">
           {currentView === 'home' ? (
             <HomePage onStartGame={handleStartGame} />
+          ) : currentView === 'loading' ? (
+            <TerminalLoader onComplete={handleLoadingComplete} />
           ) : (
             gameMode === 'speed-bullet' ? (
               <GameEngine
                 key={resetKey}
-                onBestWPMUpdate={handleBestWPMUpdate}
                 onGoHome={handleLogoClick}
                 autoStart={true}
               />
@@ -65,7 +72,7 @@ function App() {
           )}
         </main>
       </div>
-    </>
+    </AuthProvider>
   );
 }
 

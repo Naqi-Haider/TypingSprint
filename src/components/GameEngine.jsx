@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import WordDisplay from './WordDisplay';
 import Results from './Results';
+import { useAuth } from '../context/AuthContext';
 import './GameEngine.css';
 
 // Organized word bank by grammatical type
@@ -97,7 +98,8 @@ const getWordType = (word) => {
 const GAME_DURATION = 60; // 60 seconds
 const VISIBLE_WORDS = 8; // Increased lookahead - show more words
 
-const GameEngine = ({ onBestWPMUpdate, onGoHome, autoStart = false }) => {
+const GameEngine = ({ onGoHome, autoStart = false }) => {
+  const { updateUserStats, user, isLoggedIn } = useAuth();
   const [gameState, setGameState] = useState('idle'); // idle, playing, finished
   const [words, setWords] = useState([]);
   const [wordTypes, setWordTypes] = useState([]); // Track word types for consecutive limit
@@ -200,12 +202,18 @@ const GameEngine = ({ onBestWPMUpdate, onGoHome, autoStart = false }) => {
       const bestWPM = parseInt(localStorage.getItem('bestWPM') || '0');
       if (currentWPM > bestWPM) {
         localStorage.setItem('bestWPM', currentWPM.toString());
-        if (onBestWPMUpdate) {
-          onBestWPMUpdate(currentWPM);
-        }
+      }
+      
+      // Update user stats if logged in
+      if (isLoggedIn) {
+        const newBestWPM = currentWPM > (user.bestWPM || 0) ? currentWPM : user.bestWPM;
+        updateUserStats({
+          bestWPM: newBestWPM,
+          gamesPlayed: (user.gamesPlayed || 0) + 1
+        });
       }
     }
-  }, [timeLeft, gameState, totalWords, onBestWPMUpdate]);
+  }, [timeLeft, gameState, totalWords, isLoggedIn, user, updateUserStats]);
 
   // Handle keyboard input
   useEffect(() => {
