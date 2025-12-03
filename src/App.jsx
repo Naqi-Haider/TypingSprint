@@ -13,7 +13,8 @@ const THEME_CLASSES = {
   'retro': '',
   'blue': 'theme-blue',
   'sunset': 'theme-sunset',
-  'gold': 'theme-gold'
+  'gold': 'theme-gold',
+  'obsidian': 'theme-obsidian'
 };
 
 function App() {
@@ -22,12 +23,27 @@ function App() {
   const [gameMode, setGameMode] = useState(null); // 'speed-bullet' or 'paragraph'
   const [isLoading, setIsLoading] = useState(false);
   const [isGameReady, setIsGameReady] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState('retro');
 
   // Load and apply saved theme on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('selectedTheme') || 'retro';
+    setCurrentTheme(savedTheme);
     const themeClass = THEME_CLASSES[savedTheme] || '';
     document.documentElement.className = themeClass;
+  }, []);
+
+  // Listen for theme changes
+  useEffect(() => {
+    const handleThemeChange = (e) => {
+      const newTheme = e.detail || 'retro';
+      setCurrentTheme(newTheme);
+      const themeClass = THEME_CLASSES[newTheme] || '';
+      document.documentElement.className = themeClass;
+    };
+
+    window.addEventListener('themeChange', handleThemeChange);
+    return () => window.removeEventListener('themeChange', handleThemeChange);
   }, []);
 
   useEffect(() => {
@@ -65,33 +81,35 @@ function App() {
 
   return (
     <AuthProvider>
-      <AuthModal />
-      <RippleCursor maxSize={30} duration={800} blur={true} />
-      <div className="app">
-        <Navbar onLogoClick={handleLogoClick} />
-        <main className="main-content">
-          {currentView === 'home' ? (
-            <HomePage onStartGame={handleStartGame} />
-          ) : currentView === 'loading' ? (
-            <TerminalLoader onComplete={handleLoadingComplete} />
-          ) : (
-            isGameReady && (
-              gameMode === 'speed-bullet' ? (
-                <GameEngine
-                  key={resetKey}
-                  onGoHome={handleLogoClick}
-                  autoStart={true}
-                />
-              ) : (
-                <ParagraphEngine
-                  key={resetKey}
-                  onGoHome={handleLogoClick}
-                  autoStart={true}
-                />
+      <div className={`app-wrapper ${THEME_CLASSES[currentTheme] || ''}`}>
+        <AuthModal />
+        <RippleCursor maxSize={30} duration={800} blur={true} />
+        <div className="app">
+          <Navbar onLogoClick={handleLogoClick} />
+          <main className="main-content">
+            {currentView === 'home' ? (
+              <HomePage onStartGame={handleStartGame} currentTheme={currentTheme} />
+            ) : currentView === 'loading' ? (
+              <TerminalLoader onComplete={handleLoadingComplete} />
+            ) : (
+              isGameReady && (
+                gameMode === 'speed-bullet' ? (
+                  <GameEngine
+                    key={resetKey}
+                    onGoHome={handleLogoClick}
+                    autoStart={true}
+                  />
+                ) : (
+                  <ParagraphEngine
+                    key={resetKey}
+                    onGoHome={handleLogoClick}
+                    autoStart={true}
+                  />
+                )
               )
-            )
-          )}
-        </main>
+            )}
+          </main>
+        </div>
       </div>
     </AuthProvider>
   );

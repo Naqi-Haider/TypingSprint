@@ -3,8 +3,9 @@
   top: 0;
   z-index: 100;
   padding: 0.9rem var(--spacing-lg);
-  border-bottom: 1px solid var(--glass-border);
-  backdrop-filter: blur(20px);
+  background: var(--bg-color, var(--bg));
+  border-bottom: 1px solid var(--border-color, var(--primary));
+  transition: background-color var(--transition-normal), border-color var(--transition-normal);
 }
 
 .navbar-content {
@@ -31,6 +32,7 @@
   width: 28px;
   height: 28px;
   filter: brightness(1.2);
+  transition: filter var(--transition-normal);
 }
 
 @media (max-width: 768px) {

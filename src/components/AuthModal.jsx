@@ -84,37 +84,62 @@ const AuthModal = () => {
         >
           {mode === 'choice' && (
             <div className="auth-choice">
-              <div className="auth-header">
-                <h2 className="auth-title gradient-text">Welcome to Typing Sprint!</h2>
-                <p className="auth-subtitle">Choose how you'd like to continue</p>
-              </div>
-
-              <div className="auth-buttons">
-                <button
-                  className="auth-btn guest-btn glass"
-                  onClick={handleGuestContinue}
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              {/* Left Column - Guest */}
+              <div className="auth-guest-column">
+                <svg className="guest-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <h3 className="guest-title">Quick Play</h3>
+                <p className="guest-subtitle">Jump straight into the action. No account needed.</p>
+                <button className="guest-btn" onClick={handleGuestContinue}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" />
                   </svg>
-                  <span>Continue as Guest</span>
-                </button>
-
-                <button
-                  className="auth-btn login-btn"
-                  onClick={() => setMode('login')}
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <polyline points="10 17 15 12 10 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <line x1="15" y1="12" x2="3" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <span>Login / Signup</span>
+                  <span>Play Now</span>
                 </button>
               </div>
 
-              <p className="auth-note">Guest mode: Your progress won't be saved</p>
+              {/* Center Divider */}
+              <div className="auth-or-divider">
+                <span className="or-circle">OR</span>
+              </div>
+
+              {/* Right Column - Login */}
+              <div className="auth-login-column">
+                <div className="login-header">
+                  <h3 className="login-title">Sign In</h3>
+                  <p className="login-subtitle">Track your progress & compete</p>
+                </div>
+                <form onSubmit={handleLogin} className="auth-mini-form">
+                  <div className="floating-input-group">
+                    <input
+                      type="email"
+                      name="email"
+                      placeholder="Email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className="floating-input"
+                    />
+                  </div>
+                  <div className="floating-input-group">
+                    <input
+                      type="password"
+                      name="password"
+                      placeholder="Password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      className="floating-input"
+                    />
+                  </div>
+                  {error && <div className="auth-error">{error}</div>}
+                  <button type="submit" className="login-submit-btn">
+                    Login
+                  </button>
+                </form>
+                <p className="auth-toggle-link">
+                  New here? <span onClick={() => setMode('signup')}>Create Account</span>
+                </p>
+              </div>
             </div>
           )}
 

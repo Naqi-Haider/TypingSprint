@@ -50,19 +50,45 @@ const THEMES = [
       bg: '#1a1a1a',
       gradient: 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)'
     }
+  },
+  {
+    id: 'obsidian',
+    name: 'Obsidian',
+    className: 'theme-obsidian',
+    isPremium: false,
+    locked: false,
+    colors: {
+      primary: '#ffffff',
+      bg: '#000000',
+      gradient: 'linear-gradient(135deg, #1a1a1a 0%, #000000 50%, #262626 100%)',
+      border: '#404040'
+    }
   }
 ];
 
 const UserSettings = ({ onClose }) => {
   const { user, updateUserStats } = useAuth();
 
-  const [username, setUsername] = useState(user?.name || 'User');
-  const [bio, setBio] = useState(user?.bio || 'Professional typist');
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || '');
-  const [bannerUrl, setBannerUrl] = useState(user?.bannerUrl || '');
-  const [selectedTheme, setSelectedTheme] = useState(
-    THEMES.find(t => t.id === (user?.theme || 'retro')) || THEMES[0]
-  );
+  // Initial values for change tracking
+  const initialUsername = user?.name || 'User';
+  const initialBio = user?.bio || 'Professional typist';
+  const initialAvatarUrl = user?.avatarUrl || '';
+  const initialBannerUrl = user?.bannerUrl || '';
+  const initialTheme = THEMES.find(t => t.id === (user?.theme || 'retro')) || THEMES[0];
+
+  const [username, setUsername] = useState(initialUsername);
+  const [bio, setBio] = useState(initialBio);
+  const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
+  const [bannerUrl, setBannerUrl] = useState(initialBannerUrl);
+  const [selectedTheme, setSelectedTheme] = useState(initialTheme);
+
+  // Track if any changes have been made
+  const hasChanges =
+    username !== initialUsername ||
+    bio !== initialBio ||
+    avatarUrl !== initialAvatarUrl ||
+    bannerUrl !== initialBannerUrl ||
+    selectedTheme.id !== initialTheme.id;
 
   const handleThemeSelect = (theme) => {
     if (theme.locked) return;
@@ -72,6 +98,27 @@ const UserSettings = ({ onClose }) => {
     const root = document.documentElement;
     root.className = theme.className;
     localStorage.setItem('selectedTheme', theme.id);
+    
+    // Dispatch custom event for same-tab reactivity
+    window.dispatchEvent(new CustomEvent('themeChange', { detail: theme.id }));
+  };
+
+  const handleClose = () => {
+    if (hasChanges) {
+      const confirmClose = window.confirm(
+        'You have unsaved changes. Are you sure you want to close without saving?'
+      );
+      if (!confirmClose) return;
+
+      // Revert theme if changed and not saved
+      if (selectedTheme.id !== initialTheme.id) {
+        const root = document.documentElement;
+        root.className = initialTheme.className;
+        localStorage.setItem('selectedTheme', initialTheme.id);
+        window.dispatchEvent(new CustomEvent('themeChange', { detail: initialTheme.id }));
+      }
+    }
+    onClose();
   };
 
   const handleSave = () => {
@@ -90,14 +137,18 @@ const UserSettings = ({ onClose }) => {
       <div className="user-settings-container">
         {/* Header */}
         <div className="settings-header">
-          <button className="back-button" onClick={onClose}>
+          <button className="back-button" onClick={handleClose}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <span>Back</span>
           </button>
           <h1 className="settings-title">USER SETTINGS</h1>
-          <button className="save-button" onClick={handleSave}>
+          <button 
+            className={`save-button ${!hasChanges ? 'disabled' : ''}`} 
+            onClick={handleSave}
+            disabled={!hasChanges}
+          >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <polyline points="20 6 9 17 4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -197,7 +248,10 @@ const UserSettings = ({ onClose }) => {
                   <button
                     key={theme.id}
                     className={`theme-card ${selectedTheme.id === theme.id ? 'selected' : ''} ${theme.locked ? 'locked' : ''}`}
-                    style={{ background: theme.colors.gradient }}
+                    style={{ 
+                      background: theme.colors.gradient,
+                      borderColor: theme.colors.border || 'transparent'
+                    }}
                     onClick={() => handleThemeSelect(theme)}
                     disabled={theme.locked}
                   >

@@ -226,10 +226,12 @@ const GameEngine = ({ onGoHome, autoStart = false }) => {
       const currentWord = words[currentWordIndex];
 
       if (e.key === 'Backspace') {
-        setUserInput((prev) => prev.slice(0, -1));
-        setHasError(false);
-        setErrorMessage('');
-        setShakeWord(false);
+        // Prevent backspacing - user must type correctly
+        e.preventDefault();
+        // Visual feedback - shake the word briefly
+        setShakeWord(true);
+        setTimeout(() => setShakeWord(false), 300);
+        return;
       } else if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
 

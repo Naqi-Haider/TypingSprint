@@ -16,9 +16,16 @@
   --primary: #22c55e;
   --primary-dark: #16a34a;
   --primary-light: #4ade80;
+  --primary-rgb: 34, 197, 94;
   --bg: #000000;
   --bg-secondary: #0b140e;
   --bg-card: #1a1a1a;
+
+  /* Semantic color mapping */
+  --bg-color: var(--bg);
+  --bg-panel: var(--bg-secondary);
+  --border-color: var(--primary);
+  --text-main: #F2F7E4;
 
   /* Derived colors from theme */
   --accent-primary: var(--primary);
@@ -65,9 +72,17 @@
   --primary: #06b6d4;
   --primary-dark: #0891b2;
   --primary-light: #22d3ee;
+  --primary-rgb: 6, 182, 212;
   --bg: #0f172a;
   --bg-secondary: #1e293b;
   --bg-card: #334155;
+  --bg-color: #0f172a;
+  --bg-panel: #1e293b;
+  --border-color: #06b6d4;
+  --text-main: #e2e8f0;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
   --glass-bg: rgba(6, 182, 212, 0.05);
   --glass-border: rgba(6, 182, 212, 0.2);
 }
@@ -77,9 +92,17 @@
   --primary: #f97316;
   --primary-dark: #ea580c;
   --primary-light: #fb923c;
+  --primary-rgb: 249, 115, 22;
   --bg: #2e1065;
   --bg-secondary: #3b0764;
   --bg-card: #4c1d95;
+  --bg-color: #2e1065;
+  --bg-panel: #3b0764;
+  --border-color: #f97316;
+  --text-main: #fdf4ff;
+  --text-primary: #fdf4ff;
+  --text-secondary: #d8b4fe;
+  --text-muted: #a855f7;
   --glass-bg: rgba(249, 115, 22, 0.05);
   --glass-border: rgba(249, 115, 22, 0.2);
 }
@@ -89,11 +112,53 @@
   --primary: #eab308;
   --primary-dark: #ca8a04;
   --primary-light: #fbbf24;
+  --primary-rgb: 234, 179, 8;
   --bg: #1a1a1a;
-  --bg-secondary: #0a0a0a;
-  --bg-card: #2a2a2a;
+  --bg-secondary: #262626;
+  --bg-card: #333333;
+  --bg-color: #1a1a1a;
+  --bg-panel: #262626;
+  --border-color: #eab308;
+  --text-main: #fef3c7;
+  --text-primary: #fef3c7;
+  --text-secondary: #fcd34d;
+  --text-muted: #a16207;
   --glass-bg: rgba(234, 179, 8, 0.05);
   --glass-border: rgba(234, 179, 8, 0.2);
+}
+
+/* Theme: Obsidian (Monochrome) */
+.theme-obsidian {
+  --primary: #ffffff;
+  --primary-dark: #a3a3a3;
+  --primary-light: #e5e5e5;
+  --primary-rgb: 255, 255, 255;
+  --bg: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-card: #171717;
+  --bg-color: #000000;
+  --bg-panel: #0a0a0a;
+  --border-color: #404040;
+  --text-main: #e5e5e5;
+  --text-primary: #e5e5e5;
+  --text-secondary: #a3a3a3;
+  --text-muted: #525252;
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+/* Global theme-reactive rules */
+section,
+header,
+footer,
+.hero-content,
+.mode-card,
+.preview-container,
+.game-card,
+.auth-modal {
+  background-color: var(--bg-panel);
+  color: var(--text-main);
+  border-color: var(--border-color);
 }
 
 /* Reset & Base Styles */
