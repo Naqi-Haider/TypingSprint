@@ -7,10 +7,14 @@
   justify-content: center;
   overflow: hidden;
   position: relative;
+  background: transparent;
+  /* CSS Mask for seamless fade */
+  -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+  mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
 }
 
 /* Edge fading effect */
-.word-display-container::before,
+/* .word-display-container::before,
 .word-display-container::after {
   content: '';
   position: absolute;
@@ -29,7 +33,7 @@
 .word-display-container::after {
   right: 0;
   background: linear-gradient(to left, #0b140e 0%, transparent 100%);
-}
+} */
 
 .words-track {
   position: relative;

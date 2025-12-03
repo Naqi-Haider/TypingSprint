@@ -12,27 +12,33 @@
 }
 
 :root {
-  /* Color Palette - Based on Screenshot Theme */
-  --bg-primary: #0b140e;
-  --bg-secondary: #1D220A;
-  --bg-card: #242B0D;
-  --bg-light: #F2F7E4;
+  /* Theme Colors - Retro Terminal (Default) */
+  --primary: #22c55e;
+  --primary-dark: #16a34a;
+  --primary-light: #4ade80;
+  --bg: #000000;
+  --bg-secondary: #0b140e;
+  --bg-card: #1a1a1a;
 
-  --accent-primary: #60934D;
-  --accent-secondary: #4a7a3d;
-  --accent-dark: #3a5f30;
+  /* Derived colors from theme */
+  --accent-primary: var(--primary);
+  --accent-secondary: var(--primary-dark);
+  --accent-dark: var(--primary-dark);
+  --bg-primary: var(--bg);
 
-  --success: #60934D;
+  /* Universal colors */
+  --success: var(--primary);
   --error: #ff4444;
   --warning: #ffaa00;
 
   --text-primary: #F2F7E4;
   --text-secondary: #a0a89a;
   --text-muted: #505850;
+  --bg-light: #F2F7E4;
 
-  /* Glass Effect */
-  --glass-bg: rgba(96, 147, 77, 0.05);
-  --glass-border: rgba(96, 147, 77, 0.2);
+  /* Glass Effect - uses theme primary */
+  --glass-bg: rgba(34, 197, 94, 0.05);
+  --glass-border: rgba(34, 197, 94, 0.2);
 
   /* Spacing */
   --spacing-xs: 0.5rem;
@@ -52,6 +58,42 @@
   /* Shadows */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+/* Theme: Cyber Blue */
+.theme-blue {
+  --primary: #06b6d4;
+  --primary-dark: #0891b2;
+  --primary-light: #22d3ee;
+  --bg: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-card: #334155;
+  --glass-bg: rgba(6, 182, 212, 0.05);
+  --glass-border: rgba(6, 182, 212, 0.2);
+}
+
+/* Theme: Sunset Synth (Premium) */
+.theme-sunset {
+  --primary: #f97316;
+  --primary-dark: #ea580c;
+  --primary-light: #fb923c;
+  --bg: #2e1065;
+  --bg-secondary: #3b0764;
+  --bg-card: #4c1d95;
+  --glass-bg: rgba(249, 115, 22, 0.05);
+  --glass-border: rgba(249, 115, 22, 0.2);
+}
+
+/* Theme: Matrix Gold (Premium) */
+.theme-gold {
+  --primary: #eab308;
+  --primary-dark: #ca8a04;
+  --primary-light: #fbbf24;
+  --bg: #1a1a1a;
+  --bg-secondary: #0a0a0a;
+  --bg-card: #2a2a2a;
+  --glass-bg: rgba(234, 179, 8, 0.05);
+  --glass-border: rgba(234, 179, 8, 0.2);
 }
 
 /* Reset & Base Styles */

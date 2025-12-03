@@ -2,34 +2,85 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import './UserSettings.css';
 
-const AVATAR_COLORS = [
-  '#60934D', '#4a7a3d', '#3a5f30', '#2a4f20',
-  '#8ab876', '#a0c48a', '#70b85d', '#509840'
-];
-
-const BANNER_GRADIENTS = [
-  'linear-gradient(135deg, #60934D 0%, #2a4f20 100%)',
-  'linear-gradient(135deg, #4a7a3d 0%, #0b140e 100%)',
-  'linear-gradient(135deg, #8ab876 0%, #60934D 100%)',
-  'linear-gradient(135deg, #70b85d 0%, #3a5f30 100%)',
-  'linear-gradient(135deg, #0b140e 0%, #60934D 100%)',
-  'linear-gradient(135deg, #2a4f20 0%, #8ab876 100%)'
+const THEMES = [
+  {
+    id: 'retro',
+    name: 'Retro Terminal',
+    className: '',
+    isPremium: false,
+    locked: false,
+    colors: {
+      primary: '#22c55e',
+      bg: '#000000',
+      gradient: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
+    }
+  },
+  {
+    id: 'blue',
+    name: 'Cyber Blue',
+    className: 'theme-blue',
+    isPremium: false,
+    locked: false,
+    colors: {
+      primary: '#06b6d4',
+      bg: '#0f172a',
+      gradient: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)'
+    }
+  },
+  {
+    id: 'sunset',
+    name: 'Sunset Synth',
+    className: 'theme-sunset',
+    isPremium: true,
+    locked: false,
+    colors: {
+      primary: '#f97316',
+      bg: '#2e1065',
+      gradient: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)'
+    }
+  },
+  {
+    id: 'gold',
+    name: 'Matrix Gold',
+    className: 'theme-gold',
+    isPremium: true,
+    locked: false,
+    colors: {
+      primary: '#eab308',
+      bg: '#1a1a1a',
+      gradient: 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)'
+    }
+  }
 ];
 
 const UserSettings = ({ onClose }) => {
   const { user, updateUserStats } = useAuth();
-  
+
   const [username, setUsername] = useState(user?.name || 'User');
   const [bio, setBio] = useState(user?.bio || 'Professional typist');
-  const [selectedAvatar, setSelectedAvatar] = useState(user?.avatarColor || AVATAR_COLORS[0]);
-  const [selectedBanner, setSelectedBanner] = useState(user?.banner || BANNER_GRADIENTS[0]);
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || '');
+  const [bannerUrl, setBannerUrl] = useState(user?.bannerUrl || '');
+  const [selectedTheme, setSelectedTheme] = useState(
+    THEMES.find(t => t.id === (user?.theme || 'retro')) || THEMES[0]
+  );
+
+  const handleThemeSelect = (theme) => {
+    if (theme.locked) return;
+    setSelectedTheme(theme);
+
+    // Apply theme immediately
+    const root = document.documentElement;
+    root.className = theme.className;
+    localStorage.setItem('selectedTheme', theme.id);
+  };
 
   const handleSave = () => {
     updateUserStats({
       name: username,
       bio: bio,
-      avatarColor: selectedAvatar,
-      banner: selectedBanner
+      avatarUrl: avatarUrl,
+      bannerUrl: bannerUrl,
+      theme: selectedTheme.id
     });
     onClose();
   };
@@ -41,14 +92,14 @@ const UserSettings = ({ onClose }) => {
         <div className="settings-header">
           <button className="back-button" onClick={onClose}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <span>Back</span>
           </button>
           <h1 className="settings-title">USER SETTINGS</h1>
           <button className="save-button" onClick={handleSave}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <polyline points="20 6 9 17 4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <polyline points="20 6 9 17 4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <span>Save</span>
           </button>
@@ -61,18 +112,27 @@ const UserSettings = ({ onClose }) => {
             <h2 className="section-heading">PREVIEW</h2>
             <div className="profile-card">
               {/* Banner */}
-              <div 
-                className="profile-banner" 
-                style={{ background: selectedBanner }}
+              <div
+                className="profile-banner"
+                style={{
+                  background: bannerUrl
+                    ? `url(${bannerUrl}) center/cover`
+                    : selectedTheme.colors.gradient
+                }}
               ></div>
-              
+
               {/* Avatar */}
               <div className="profile-avatar-wrapper">
-                <div 
-                  className="profile-avatar" 
-                  style={{ backgroundColor: selectedAvatar }}
+                <div
+                  className="profile-avatar"
+                  style={{
+                    backgroundColor: avatarUrl ? 'transparent' : selectedTheme.colors.primary,
+                    backgroundImage: avatarUrl ? `url(${avatarUrl})` : 'none',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center'
+                  }}
                 >
-                  {username.charAt(0).toUpperCase()}
+                  {!avatarUrl && username.charAt(0).toUpperCase()}
                 </div>
               </div>
 
@@ -81,20 +141,20 @@ const UserSettings = ({ onClose }) => {
                 <div className="profile-username">{username}</div>
                 <div className="profile-rank">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" fill="currentColor"/>
+                    <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" fill="currentColor" />
                   </svg>
                   <span>Level {Math.floor((user?.bestWPM || 0) / 10) + 1}</span>
                 </div>
                 <div className="profile-bio">{bio}</div>
-                
+
                 <div className="profile-stats-grid">
                   <div className="profile-stat">
                     <div className="profile-stat-value">{user?.bestWPM || 0}</div>
                     <div className="profile-stat-label">Best WPM</div>
                   </div>
                   <div className="profile-stat">
-                    <div className="profile-stat-value">{user?.gamesPlayed || 0}</div>
-                    <div className="profile-stat-label">Games</div>
+                    <div className="profile-stat-value">{user?.highestStreak || 0}</div>
+                    <div className="profile-stat-label">Highest Streak</div>
                   </div>
                 </div>
               </div>
@@ -129,50 +189,88 @@ const UserSettings = ({ onClose }) => {
               </div>
             </div>
 
-            {/* Aesthetics Section */}
+            {/* Themes Section */}
             <div className="control-section">
-              <h2 className="section-heading">AESTHETICS</h2>
-              
-              {/* Avatar Picker */}
-              <div className="control-group">
-                <label className="control-label">AVATAR COLOR</label>
-                <div className="color-picker">
-                  {AVATAR_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      className={`color-option ${selectedAvatar === color ? 'selected' : ''}`}
-                      style={{ backgroundColor: color }}
-                      onClick={() => setSelectedAvatar(color)}
-                    >
-                      {selectedAvatar === color && (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <polyline points="20 6 9 17 4 12" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
+              <h2 className="section-heading">THEMES</h2>
+              <div className="theme-grid">
+                {THEMES.map((theme) => (
+                  <button
+                    key={theme.id}
+                    className={`theme-card ${selectedTheme.id === theme.id ? 'selected' : ''} ${theme.locked ? 'locked' : ''}`}
+                    style={{ background: theme.colors.gradient }}
+                    onClick={() => handleThemeSelect(theme)}
+                    disabled={theme.locked}
+                  >
+                    <div className="theme-card-content">
+                      <div className="theme-name">{theme.name}</div>
+                      {theme.isPremium && (
+                        <div className="theme-badge">Premium</div>
                       )}
-                    </button>
-                  ))}
+                    </div>
+                    {theme.locked && (
+                      <div className="lock-overlay">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="2" />
+                          <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                    )}
+                    {selectedTheme.id === theme.id && !theme.locked && (
+                      <div className="theme-check">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <polyline points="20 6 9 17 4 12" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Uploads Section */}
+            <div className="control-section">
+              <h2 className="section-heading">CUSTOM UPLOADS</h2>
+
+              {/* Profile Picture URL */}
+              <div className="control-group">
+                <label className="control-label">PROFILE PICTURE URL</label>
+                <div className="url-input-group">
+                  <input
+                    type="text"
+                    className="control-input"
+                    value={avatarUrl}
+                    onChange={(e) => setAvatarUrl(e.target.value)}
+                    placeholder="https://example.com/avatar.jpg"
+                  />
+                  <button className="upload-button" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <span>Upload</span>
+                  </button>
                 </div>
+                <div className="control-hint">Leave empty to use theme color</div>
               </div>
 
-              {/* Banner Picker */}
+              {/* Banner Image URL */}
               <div className="control-group">
-                <label className="control-label">BANNER GRADIENT</label>
-                <div className="banner-picker">
-                  {BANNER_GRADIENTS.map((gradient, index) => (
-                    <button
-                      key={index}
-                      className={`banner-option ${selectedBanner === gradient ? 'selected' : ''}`}
-                      style={{ background: gradient }}
-                      onClick={() => setSelectedBanner(gradient)}
-                    >
-                      {selectedBanner === gradient && (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <polyline points="20 6 9 17 4 12" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      )}
-                    </button>
-                  ))}
+                <label className="control-label">BANNER IMAGE URL</label>
+                <div className="url-input-group">
+                  <input
+                    type="text"
+                    className="control-input"
+                    value={bannerUrl}
+                    onChange={(e) => setBannerUrl(e.target.value)}
+                    placeholder="https://example.com/banner.jpg"
+                  />
+                  <button className="upload-button" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <span>Upload</span>
+                  </button>
                 </div>
+                <div className="control-hint">Leave empty to use theme gradient</div>
               </div>
             </div>
           </div>

@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import './HomePage.css';
 import TypewriterText from './TypewriterText';
 import HeroTypewriter from './HeroTypewriter';
+import sbPreview from '../assets/sb_preview.mp4';
+import paraPreview from '../assets/para_preview.mp4';
 
 const HomePage = ({ onStartGame }) => {
   const modesSectionRef = useRef(null);
@@ -27,7 +29,7 @@ const HomePage = ({ onStartGame }) => {
           <div className="hero-text">
             <h1 className="hero-title">Ready to Sprint?</h1>
             <div className="hero-typewriter-container">
-              <HeroTypewriter 
+              <HeroTypewriter
                 strings={[
                   'Dominate the 60-second Speed-Bullet Challenge.',
                   'Climb the Difficulty Tiers in Paragraph Mode.',
@@ -41,10 +43,10 @@ const HomePage = ({ onStartGame }) => {
             </div>
             <div className="hero-cta-wrapper">
               <button className="cta-button" onClick={scrollToModes}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" />
-              </svg>
-              <span>Start Typing</span>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" />
+                </svg>
+                <span>Start Typing</span>
               </button>
             </div>
           </div>
@@ -85,16 +87,14 @@ const HomePage = ({ onStartGame }) => {
                 <h3 className="preview-title">Paragraph Mode - Demo</h3>
               </div>
               <div className="preview-media">
-                <div className="preview-placeholder">
-                  <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="3" y="3" width="18" height="18" rx="2" fill="var(--accent-primary)" />
-                    <line x1="7" y1="8" x2="17" y2="8" stroke="var(--bg-primary)" strokeWidth="2" strokeLinecap="round" />
-                    <line x1="7" y1="12" x2="17" y2="12" stroke="var(--bg-primary)" strokeWidth="2" strokeLinecap="round" />
-                    <line x1="7" y1="16" x2="13" y2="16" stroke="var(--bg-primary)" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                  <p>Paragraph Mode Demo</p>
-                  <span className="preview-note">Demo video will be placed here</span>
-                </div>
+                <video
+                  className="w-full h-full object-cover"
+                  src={paraPreview}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                />
               </div>
             </div>
           ) : (
@@ -140,13 +140,14 @@ const HomePage = ({ onStartGame }) => {
                 <h3 className="preview-title">Speed Bullet Mode - Demo</h3>
               </div>
               <div className="preview-media">
-                <div className="preview-placeholder">
-                  <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <polygon points="5 3 19 12 5 21 5 3" fill="var(--accent-primary)" />
-                  </svg>
-                  <p>Speed Bullet Mode Demo</p>
-                  <span className="preview-note">Demo video will be placed here</span>
-                </div>
+                <video
+                  className="w-full h-full object-cover"
+                  src={sbPreview}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                />
               </div>
             </div>
           ) : (
