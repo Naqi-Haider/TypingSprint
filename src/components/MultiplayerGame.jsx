@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import './MultiplayerGame.css';
 
@@ -38,7 +39,8 @@ const MultiplayerGame = ({
   skipCountdown = false, // Skip countdown if lobby already handled it
   onProgress,
   onComplete,
-  onLeave
+  onLeave,
+  onReturnToLobby // New prop - return to lobby without leaving room
 }) => {
   // Game States - skip countdown if lobby already handled it
   const [gamePhase, setGamePhase] = useState(skipCountdown ? 'playing' : 'countdown');
@@ -78,6 +80,16 @@ const MultiplayerGame = ({
   const [isSpectating, setIsSpectating] = useState(false); // Am I in spectator mode
   const [spectatorTargetId, setSpectatorTargetId] = useState(null); // Who am I watching
   const [spectators, setSpectators] = useState([]); // Who is watching me
+  const [eliminatedCountdown, setEliminatedCountdown] = useState(INTERMISSION_DURATION);
+  const [hasSelectedSpectate, setHasSelectedSpectate] = useState(false); // Track spectate selection without dismissing modal
+  const [spectatorLoading, setSpectatorLoading] = useState(false); // Show loading bar when transitioning to spectate
+  const [spectatorLoadingProgress, setSpectatorLoadingProgress] = useState(0); // 0-100 for loading bar
+
+  // Final result countdown
+  const [finalResultCountdown, setFinalResultCountdown] = useState(5); // 5 second countdown at final result
+
+  // Navigation hook
+  const navigate = useNavigate();
 
   // Typing States
   const [typedText, setTypedText] = useState('');
@@ -119,6 +131,29 @@ const MultiplayerGame = ({
   const inputRef = useRef(null);
   const timerRef = useRef(null);
   const startTimeRef = useRef(null);
+  
+  // Refs for socket handler access (to get current values in callbacks)
+  const isEliminatedRef = useRef(isEliminated);
+  const isSpectatingRef = useRef(isSpectating);
+  const hasSelectedSpectateRef = useRef(hasSelectedSpectate);
+  const spectatorLoadingRef = useRef(spectatorLoading);
+  
+  // Keep refs in sync with state
+  useEffect(() => {
+    isEliminatedRef.current = isEliminated;
+  }, [isEliminated]);
+  
+  useEffect(() => {
+    isSpectatingRef.current = isSpectating;
+  }, [isSpectating]);
+  
+  useEffect(() => {
+    hasSelectedSpectateRef.current = hasSelectedSpectate;
+  }, [hasSelectedSpectate]);
+  
+  useEffect(() => {
+    spectatorLoadingRef.current = spectatorLoading;
+  }, [spectatorLoading]);
 
   // Get the current text to type based on mode
   const activeText = mode === 'tier' ? currentParagraph : (dynamicParagraph || targetText);
@@ -248,8 +283,23 @@ const MultiplayerGame = ({
         setRoundIndex(newRoundIndex);
         setCurrentTier(difficulty);
         setCurrentParagraph(paragraphText);
-        resetForNewRound();
-        setShowIntermission(false);
+        
+        // Only reset game state for active (non-eliminated) players
+        // Use refs to get current values (state might be stale in socket handler)
+        const playerIsEliminated = isEliminatedRef.current;
+        const playerIsSpectating = isSpectatingRef.current;
+        const playerHasSelectedSpectate = hasSelectedSpectateRef.current;
+        const playerSpectatorLoading = spectatorLoadingRef.current;
+        
+        // Skip reset if player is eliminated/spectating or transitioning to spectate
+        if (!playerIsEliminated && !playerIsSpectating && !playerHasSelectedSpectate && !playerSpectatorLoading) {
+          resetForNewRound();
+        }
+        
+        // Only hide intermission for non-spectating players
+        if (!playerIsSpectating && !playerSpectatorLoading) {
+          setShowIntermission(false);
+        }
       }
     };
 
@@ -273,7 +323,7 @@ const MultiplayerGame = ({
     };
 
     // Listen for tier game complete (Tier mode - final results or player finished early)
-    const handleTierGameComplete = ({ leaderboard, winner, reason }) => {
+    const handleTierGameComplete = ({ leaderboard, winner, reason, isDraw }) => {
       if (mode === 'tier') {
         // Set final stats for detailed results
         const myLeaderboardEntry = leaderboard?.find(l => l.playerId === currentPlayer?.id);
@@ -294,7 +344,8 @@ const MultiplayerGame = ({
             roundsWon: opponentRoundsWon,
             completedRounds: oppLeaderboardEntry.completedRounds
           } : null,
-          reason // 'complete', 'player_left', 'opponent_left', 'finished_early'
+          reason, // 'complete', 'player_left', 'opponent_left', 'finished_early', 'draw'
+          isDraw: isDraw || false
         });
 
         setRoundResults(leaderboard);
@@ -302,7 +353,9 @@ const MultiplayerGame = ({
         setGamePhase('finished');
 
         // Determine if I won overall
-        if (winner?.playerId === currentPlayer?.id) {
+        if (isDraw) {
+          setResult('draw');
+        } else if (winner?.playerId === currentPlayer?.id) {
           setResult('win');
         } else if (winner) {
           setResult('lose');
@@ -488,6 +541,72 @@ const MultiplayerGame = ({
     }
   }, [mode, waitingForReady, intermissionCountdown, isEliminated, isReadyForNextRound, handleReadyForNextRound]);
 
+  // Eliminated player countdown - auto-navigate to lobby when timer expires
+  useEffect(() => {
+    if (isEliminated && showIntermission && eliminatedCountdown > 0) {
+      const timer = setTimeout(() => {
+        setEliminatedCountdown(prev => prev - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (isEliminated && showIntermission && eliminatedCountdown === 0) {
+      // Check if user selected spectate or default to lobby
+      if (hasSelectedSpectate) {
+        // User chose to spectate - show loading bar first
+        setSpectatorLoading(true);
+        setShowIntermission(false);
+      } else {
+        // Default: Auto-navigate to lobby when countdown reaches 0
+        handleBackToLobby();
+      }
+    }
+  }, [isEliminated, showIntermission, eliminatedCountdown, hasSelectedSpectate]);
+
+  // Spectator loading bar effect - animate to 100% then activate spectating
+  useEffect(() => {
+    if (spectatorLoading && !isSpectating) {
+      const duration = 2000; // 2 seconds loading
+      const interval = 50; // Update every 50ms
+      const step = 100 / (duration / interval);
+      
+      const timer = setInterval(() => {
+        setSpectatorLoadingProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(timer);
+            setIsSpectating(true);
+            setSpectatorLoading(false);
+            return 100;
+          }
+          return prev + step;
+        });
+      }, interval);
+      
+      return () => clearInterval(timer);
+    }
+  }, [spectatorLoading, isSpectating]);
+
+  // Handler for back to lobby button - return to lobby without leaving the room
+  const handleBackToLobby = useCallback(() => {
+    // Reset all spectating states
+    setIsSpectating(false);
+    setSpectatorLoading(false);
+    setSpectatorLoadingProgress(0);
+    setHasSelectedSpectate(false);
+    setSpectatorTargetId(null);
+    setShowIntermission(false);
+    setIsEliminated(false); // Reset eliminated state when going back to lobby
+    
+    // Use onReturnToLobby to go back to lobby view without leaving room
+    if (onReturnToLobby) {
+      onReturnToLobby();
+    } else if (onLeave) {
+      // Fallback to onLeave if onReturnToLobby not provided
+      onLeave();
+    } else {
+      // Last fallback: navigate to home
+      navigate('/');
+    }
+  }, [onReturnToLobby, onLeave, navigate]);
+
   // Handle "Quit Game" button click in tier mode (give up remaining chances)
   const handleQuitTierGame = useCallback(() => {
     if (socket && roomId) {
@@ -581,6 +700,19 @@ const MultiplayerGame = ({
     // Server will emit 'next_round' after 10s - no need to advance client-side
   }, [showIntermission, intermissionCountdown]);
 
+  // Final result countdown effect for tier mode - auto-return to lobby after 5 seconds
+  useEffect(() => {
+    if (mode === 'tier' && tierGameEnded && gamePhase === 'finished' && finalResultCountdown > 0) {
+      const timer = setTimeout(() => {
+        setFinalResultCountdown(prev => prev - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (mode === 'tier' && tierGameEnded && gamePhase === 'finished' && finalResultCountdown === 0) {
+      // Auto-return to lobby when countdown reaches 0
+      handleBackToLobby();
+    }
+  }, [mode, tierGameEnded, gamePhase, finalResultCountdown, handleBackToLobby]);
+
   // Calculate progress percentage - only count correctly typed characters
   const calculateProgress = useCallback(() => {
     if (!typedText) return 0;
@@ -632,7 +764,7 @@ const MultiplayerGame = ({
 
   // Game timer
   useEffect(() => {
-    if (gamePhase === 'playing') {
+    if (gamePhase === 'playing' && !isRoundComplete) {
       timerRef.current = setInterval(() => {
         setTimeRemaining(prev => {
           const difficulty = TIER_SCHEDULE[roundIndex];
@@ -673,7 +805,7 @@ const MultiplayerGame = ({
 
       return () => clearInterval(timerRef.current);
     }
-  }, [gamePhase, timeLimit, mode, socket, roomId, roundIndex, isEliminated]);
+  }, [gamePhase, timeLimit, mode, socket, roomId, roundIndex, isEliminated, isRoundComplete]);
 
   // Get streak/combo level based on streak count (matching single-player)
   const getComboLevel = useCallback(() => {
@@ -801,10 +933,13 @@ const MultiplayerGame = ({
         const penaltyUsed = timeRemaining < 0 ? Math.abs(timeRemaining) : 0;
         setPenaltyTimeUsed(penaltyUsed);
 
-        // Store round stats
+        // Store round stats - these are now final for this round
         setTierRoundStats({ wpm, precision: accuracy, penaltyTimeUsed: penaltyUsed });
         setBestStreak(prev => Math.max(prev, streak));
         setIsRoundComplete(true);
+        
+        // Stop the timer - round is complete for this player
+        clearInterval(timerRef.current);
 
         // Emit round complete to server - server will track finish order
         if (socket && roomId) {
@@ -886,11 +1021,26 @@ const MultiplayerGame = ({
 
   // Render spectator view text (showing watched player's progress)
   const renderSpectatorText = () => {
-    if (!spectatorTargetId || !opponentProgress[spectatorTargetId]) {
-      return <span className="spectator-waiting">Waiting for player data...</span>;
+    const targetData = spectatorTargetId ? opponentProgress[spectatorTargetId] : null;
+    
+    if (!spectatorTargetId) {
+      return <span className="spectator-waiting">Select a player to watch...</span>;
     }
 
-    const targetTypedText = opponentProgress[spectatorTargetId]?.typedText || '';
+    // Get the typed text from opponent progress
+    // If we have progress but no typedText, estimate the position based on progress percentage
+    let targetTypedText = targetData?.typedText || '';
+    
+    // If no typedText but we have progress, calculate approximate position
+    if (!targetTypedText && targetData?.progress > 0 && activeText) {
+      const estimatedLength = Math.floor((targetData.progress / 100) * activeText.length);
+      targetTypedText = activeText.substring(0, estimatedLength);
+    }
+    
+    if (!targetTypedText && (!targetData || targetData.progress === 0)) {
+      return <span className="spectator-waiting">Waiting for player to start typing...</span>;
+    }
+
     let charIndex = 0;
 
     return words.map((word, wordIndex) => {
@@ -906,7 +1056,14 @@ const MultiplayerGame = ({
         let className = 'char';
 
         if (globalIndex < targetTypedText.length) {
-          className += targetTypedText[globalIndex] === char ? ' correct' : ' incorrect';
+          // If we have actual typedText, show correct/incorrect
+          // If it's estimated (no errors known), show as correct
+          if (targetData?.typedText) {
+            className += targetTypedText[globalIndex] === char ? ' correct' : ' incorrect';
+          } else {
+            // Estimated progress - show as correct (we don't know actual errors)
+            className += ' correct estimated';
+          }
         }
 
         return (
@@ -923,7 +1080,7 @@ const MultiplayerGame = ({
           </span>
           {wordIndex < words.length - 1 && (
             <span
-              className={`char space ${wordEnd < targetTypedText.length ? (targetTypedText[wordEnd] === ' ' ? 'correct' : 'incorrect') : ''}`}
+              className={`char space ${wordEnd < targetTypedText.length ? (targetData?.typedText && targetTypedText[wordEnd] === ' ' ? 'correct' : targetData?.typedText ? 'incorrect' : 'correct estimated') : ''}`}
             >
               {' '}
             </span>
@@ -999,9 +1156,12 @@ const MultiplayerGame = ({
 
           {/* Center: Game Mode Badge + Live Timer */}
           <div className="hud-center">
-            <span className="hud-mode-badge">
+            <span 
+              className={`hud-mode-badge ${mode === 'tier' ? 'tier-mode' : ''}`}
+              data-difficulty={mode === 'tier' ? TIER_SCHEDULE[roundIndex] : undefined}
+            >
               {mode === 'tier'
-                ? `${TIER_SCHEDULE[roundIndex]?.charAt(0).toUpperCase() + TIER_SCHEDULE[roundIndex]?.slice(1) || 'Tier'} (${roundIndex + 1}/${TOTAL_TIER_ROUNDS})`
+                ? `TIER MODE • ${TIER_SCHEDULE[roundIndex]?.toUpperCase() || 'TIER'} (${roundIndex + 1}/${TOTAL_TIER_ROUNDS})`
                 : 'Random'}
             </span>
             <div className={`hud-timer ${timeRemaining <= 10 && timeRemaining > 0 ? 'warning' : ''} ${timeRemaining < 0 ? 'penalty' : ''}`}>
@@ -1019,14 +1179,6 @@ const MultiplayerGame = ({
         <div className="game-main-area">
           {/* Left: Paragraph Console */}
           <div className="game-console" onClick={() => !isSpectating && inputRef.current?.focus()}>
-            {/* Spectator Mode Header */}
-            {isSpectating && (
-              <div className="spectator-header">
-                <span className="spectator-badge">👁️ SPECTATING</span>
-                <span className="spectator-target">{getSpectatorTarget()?.name || 'Unknown'}</span>
-              </div>
-            )}
-
             <div className="console-paragraph">
               {isSpectating ? renderSpectatorText() : renderText()}
             </div>
@@ -1059,7 +1211,7 @@ const MultiplayerGame = ({
           <div className="game-progress-sidebar">
             <div className="progress-sidebar-header">
               <span>Racers</span>
-              <span className="player-count">{players.length}/4</span>
+              <span className="player-count">{allPlayersData.length}/{players.length}</span>
             </div>
 
             {/* Render all players sorted by progress */}
@@ -1097,20 +1249,21 @@ const MultiplayerGame = ({
 
                   {/* Show progress bar OR position badge based on finish status */}
                   {isFinished ? (
-                    <div className="finish-position-badge position-display-font" style={{ '--player-color': playerTheme.primary }}>
-                      <span className="medal-icon">
-                        {finishPosition === 1 && '🥇'}
-                        {finishPosition === 2 && '🥈'}
-                        {finishPosition === 3 && '🥉'}
-                        {finishPosition > 3 && '🏅'}
-                      </span>
-                      <span className="position-text">
+                    <motion.div 
+                      className="finish-position-badge position-display-font" 
+                      style={{ '--player-color': playerTheme.primary }}
+                      initial={{ opacity: 0, x: 30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                    >
+                      <span className="position-number">
                         {finishPosition === 1 && '1st'}
                         {finishPosition === 2 && '2nd'}
                         {finishPosition === 3 && '3rd'}
                         {finishPosition > 3 && `${finishPosition}th`}
                       </span>
-                    </div>
+                      <span className="finished-label">FINISHED</span>
+                    </motion.div>
                   ) : (
                     <div className={`progress-bar-track ${showError ? 'has-errors' : ''}`}>
                       <motion.div
@@ -1138,31 +1291,100 @@ const MultiplayerGame = ({
         </div>
       </div>
 
-      {/* Spectator Mode: Player Selector (Standalone Section) */}
+      {/* Spectator Mode: Player Selector (Bottom Fixed Bar) */}
       {isSpectating && (
-        <div className="spectator-selector-section">
-          <div className="spectator-selector-header">
-            <span className="spectator-icon">👁️</span>
-            <span className="spectator-label">SPECTATING</span>
-          </div>
-          <div className="spectator-player-buttons">
-            {players.filter(p => !eliminatedPlayers.includes(p.id) && p.id !== currentPlayer?.id).map(p => (
-              <button
-                key={p.id}
-                className={`spectator-player-btn ${spectatorTargetId === p.id ? 'active' : ''}`}
-                onClick={() => setSpectatorTargetId(p.id)}
-              >
-                {p.avatarUrl ? (
-                  <img src={p.avatarUrl} alt={p.name} className="spectator-btn-avatar" />
-                ) : (
-                  <span className="spectator-btn-initial">{p.name?.charAt(0)}</span>
-                )}
-                <span className="spectator-btn-name">{p.name}</span>
-              </button>
-            ))}
+        <div className="spectator-bottom-bar">
+          <div className="spectator-bar-content">
+            <div className="spectator-bar-label">
+              <span className="spectator-icon">👁️</span>
+              <span>Switch Player:</span>
+            </div>
+            <div className="spectator-player-buttons">
+              {players.filter(p => !eliminatedPlayers.includes(p.id) && p.id !== currentPlayer?.id).map(p => (
+                <button
+                  key={p.id}
+                  className={`spectator-player-btn ${spectatorTargetId === p.id ? 'active' : ''}`}
+                  onClick={() => setSpectatorTargetId(p.id)}
+                >
+                  {p.avatarUrl ? (
+                    <img src={p.avatarUrl} alt={p.name} className="spectator-btn-avatar" />
+                  ) : (
+                    <span className="spectator-btn-initial">{p.name?.charAt(0)}</span>
+                  )}
+                  <span className="spectator-btn-name">{p.name}</span>
+                </button>
+              ))}
+            </div>
+            <button className="spectator-exit-btn" onClick={handleBackToLobby}>
+              Exit to Lobby
+            </button>
           </div>
         </div>
       )}
+
+      {/* Spectator Round Transition Bar - Shows when game is transitioning to next round */}
+      <AnimatePresence>
+        {isSpectating && showIntermission && mode === 'tier' && (
+          <motion.div
+            className="spectator-round-transition"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+          >
+            <div className="spectator-transition-content">
+              <span className="transition-label">NEXT ROUND:</span>
+              <span className="transition-difficulty" data-difficulty={TIER_SCHEDULE[roundIndex + 1]}>
+                {TIER_SCHEDULE[roundIndex + 1]?.toUpperCase() || 'FINISH'}
+              </span>
+              <div className="spectator-countdown-bar">
+                <motion.div
+                  className="spectator-countdown-fill"
+                  initial={{ width: "100%" }}
+                  animate={{ width: "0%" }}
+                  transition={{ duration: intermissionCountdown, ease: "linear" }}
+                />
+              </div>
+              <span className="transition-timer">{intermissionCountdown}s</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Spectator Loading Overlay - Shows when transitioning to spectator mode */}
+      <AnimatePresence>
+        {spectatorLoading && (
+          <motion.div
+            className="spectator-loading-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="spectator-loading-content"
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+            >
+              <div className="spectator-loading-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </div>
+              <h3 className="spectator-loading-title">Entering Spectator Mode</h3>
+              <p className="spectator-loading-text">Connecting to live game...</p>
+              <div className="spectator-loading-bar-container">
+                <motion.div
+                  className="spectator-loading-bar-fill"
+                  initial={{ width: "0%" }}
+                  animate={{ width: `${spectatorLoadingProgress}%` }}
+                  transition={{ ease: "linear" }}
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Countdown Top Bar */}
       <AnimatePresence>
@@ -1197,9 +1419,9 @@ const MultiplayerGame = ({
         )}
       </AnimatePresence>
 
-      {/* Tier Mode Intermission Modal - Expanded Form */}
+      {/* Tier Mode Intermission Modal - Only show for non-spectating players */}
       <AnimatePresence>
-        {showIntermission && mode === 'tier' && (
+        {showIntermission && mode === 'tier' && !isSpectating && (
           <motion.div
             className="intermission-overlay"
             initial={{ opacity: 0 }}
@@ -1231,7 +1453,7 @@ const MultiplayerGame = ({
                 </div>
               </div>
 
-              {/* Main Report: Wide View */}
+              {/* Main Report: Wide View - No Precision */}
               <div className="intermission-report-wide">
                 <div className="report-stat primary">
                   <span className="label">WPM</span>
@@ -1251,26 +1473,37 @@ const MultiplayerGame = ({
                 )}
               </div>
 
-              {/* Leaderboard Table */}
+              {/* Leaderboard Table - Without Precision Column */}
               <div className="intermission-leaderboard-wide">
                 <div className="lb-header">
                   <span>RANK</span>
                   <span>PLAYER</span>
                   <span>WPM</span>
-                  <span>PRECISION</span>
                   <span>STATUS</span>
                 </div>
-                {roundResults.map((result, idx) => (
-                  <div key={result.playerId} className={`lb-row ${result.playerId === currentPlayer?.id ? 'me' : ''}`}>
-                    <span className="lb-rank">#{result.position || idx + 1}</span>
-                    <span className="lb-name">{result.playerName}</span>
-                    <span className="lb-wpm">{result.failed ? '--' : result.wpm}</span>
-                    <span className="lb-precision">{result.failed ? '--' : `${result.precision || result.accuracy || 0}%`}</span>
-                    <span className={`lb-status ${result.failed ? 'failed' : 'passed'}`}>
-                      {result.isEliminated ? 'ELIMINATED' : result.failed ? 'FAILED' : 'PASSED'}
-                    </span>
-                  </div>
-                ))}
+                {roundResults.map((result, idx) => {
+                  const playerData = players.find(p => p.id === result.playerId);
+                  const playerTheme = PLAYER_THEMES[playerData?.theme] || PLAYER_THEMES[Object.keys(PLAYER_THEMES)[idx]] || PLAYER_THEMES.green;
+                  return (
+                    <div key={result.playerId} className={`lb-row ${result.playerId === currentPlayer?.id ? 'me' : ''}`}>
+                      <span className="lb-rank">#{result.position || idx + 1}</span>
+                      <span className="lb-player-cell">
+                        <span className="lb-avatar" style={{ '--avatar-color': playerTheme.primary }}>
+                          {playerData?.avatarUrl ? (
+                            <img src={playerData.avatarUrl} alt={result.playerName} />
+                          ) : (
+                            result.playerName?.charAt(0).toUpperCase() || 'P'
+                          )}
+                        </span>
+                        <span className="lb-name">{result.playerName}</span>
+                      </span>
+                      <span className="lb-wpm">{result.failed ? '--' : result.wpm}</span>
+                      <span className={`lb-status ${result.failed ? 'failed' : 'passed'}`}>
+                        {result.isEliminated ? 'ELIMINATED' : result.failed ? 'FAILED' : 'PASSED'}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Footer: Next Round Countdown OR Eliminated Notice */}
@@ -1290,29 +1523,62 @@ const MultiplayerGame = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="eliminated-notice-wide">
-                    <span className="icon">💀</span>
-                    <span className="text">YOU HAVE BEEN ELIMINATED</span>
-                    <p className="eliminated-subtitle">Choose to spectate or return to lobby</p>
+                  <div className="eliminated-section">
+                    <div className="eliminated-notice-wide">
+                      <svg className="eliminated-icon-svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                      </svg>
+                      <span className="text">YOU HAVE BEEN ELIMINATED</span>
+                    </div>
+                    <div className="eliminated-countdown">
+                      <div className="countdown-loader-container">
+                        <motion.div
+                          className="countdown-loader-bar eliminated"
+                          initial={{ width: "100%" }}
+                          animate={{ width: "0%" }}
+                          transition={{ duration: INTERMISSION_DURATION, ease: "linear" }}
+                        />
+                        <span className="countdown-text">{eliminatedCountdown}s</span>
+                      </div>
+                      <span className="eliminated-hint">Returning to lobby in {eliminatedCountdown}s...</span>
+                    </div>
                   </div>
                 )}
 
                 <div className="footer-actions">
                   {isEliminated ? (
                     <>
-                      <button className="spectate-btn" onClick={() => {
-                        // Get first active (non-eliminated) player as default target
-                        const activePlayers = players.filter(p => !eliminatedPlayers.includes(p.id) && p.id !== currentPlayer?.id);
-                        if (activePlayers.length > 0) {
-                          setSpectatorTargetId(activePlayers[0].id);
-                        }
-                        setIsSpectating(true);
-                        setShowIntermission(false);
-                      }}>
-                        Spectate
-                      </button>
-                      <button className="lobby-btn" onClick={() => navigate(`/lobby/${roomId}`)}>
-                        Return to Lobby
+                      {/* Spectate only available for 3+ player lobbies */}
+                      {players.length > 2 && (
+                        <button 
+                          className={`spectate-btn ${hasSelectedSpectate ? 'selected' : ''}`} 
+                          onClick={() => {
+                            // Get first active (non-eliminated) player as default target
+                            const activePlayersList = players.filter(p => !eliminatedPlayers.includes(p.id) && p.id !== currentPlayer?.id);
+                            if (activePlayersList.length > 0) {
+                              setSpectatorTargetId(activePlayersList[0].id);
+                            }
+                            setHasSelectedSpectate(true);
+                            // Don't dismiss modal yet - wait for countdown to finish
+                          }}
+                          disabled={hasSelectedSpectate}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                          </svg>
+                          {hasSelectedSpectate ? 'Spectating...' : 'Spectate'}
+                        </button>
+                      )}
+                      <button className="lobby-btn" onClick={handleBackToLobby} disabled={hasSelectedSpectate}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                          <polyline points="16 17 21 12 16 7"/>
+                          <line x1="21" y1="12" x2="9" y2="12"/>
+                        </svg>
+                        Back to Lobby
                       </button>
                     </>
                   ) : (
@@ -1325,9 +1591,14 @@ const MultiplayerGame = ({
         )}
       </AnimatePresence>
 
-      {/* Game Over Overlay - Leaderboard Results */}
+      {/* Game Over Overlay - Leaderboard Results (also shown to spectators) */}
       <AnimatePresence>
-        {gamePhase === 'finished' && (() => {
+        {/* Show game over: 
+            - For active players: when gamePhase === 'finished'
+            - For spectators/eliminated: only when tierGameEnded (actual game end, not premature)
+        */}
+        {((!isEliminated && !isSpectating && gamePhase === 'finished') || 
+          ((isSpectating || isEliminated) && tierGameEnded)) && (() => {
           // For tier mode with detailed results
           const isTierDetailed = mode === 'tier' && tierGameEnded && tierFinalStats;
 
@@ -1339,6 +1610,8 @@ const MultiplayerGame = ({
             leaderboard = roundResults.map((entry, idx) => ({
               id: entry.playerId,
               name: entry.playerName || 'Player',
+              avatarUrl: entry.avatarUrl,
+              theme: entry.theme,
               isMe: entry.playerId === currentPlayer?.id,
               wpm: entry.avgWpm || 0,
               accuracy: entry.avgAccuracy || 0,
@@ -1350,10 +1623,11 @@ const MultiplayerGame = ({
               progress: 100 // Tier mode doesn't use progress bars
             }));
           } else {
-            // Build from players for non-tier or fallback
+            // Build from players for non-tier or fallback - include all players (even eliminated)
             leaderboard = players.map(p => {
               const isMe = p.id === currentPlayer?.id;
               const pData = isMe ? null : opponentProgress[p.id];
+              const playerIsEliminated = eliminatedPlayers.includes(p.id);
 
               return {
                 id: p.id,
@@ -1361,6 +1635,7 @@ const MultiplayerGame = ({
                 avatarUrl: p.avatarUrl,
                 theme: p.theme,
                 isMe,
+                isEliminated: playerIsEliminated,
                 wpm: isMe
                   ? (isTierDetailed ? tierFinalStats.myStats?.avgWpm : calculateWPM())
                   : (pData?.wpm || 0),
@@ -1372,9 +1647,14 @@ const MultiplayerGame = ({
                 completionTime: isMe ? completionTime : pData?.completionTime,
                 roundsWon: isMe
                   ? (isTierDetailed ? tierFinalStats.myStats?.roundsWon : roundsWon)
-                  : (pData?.roundsWon || 0)
+                  : (pData?.roundsWon || 0),
+                completedRounds: isMe ? cumulativeStats.roundsPlayed : (pData?.completedRounds || 0),
+                bestWpm: isMe ? bestStreak : (pData?.bestWpm || pData?.wpm || 0)
               };
             }).sort((a, b) => {
+              // Sort eliminated players to the bottom
+              if (a.isEliminated && !b.isEliminated) return 1;
+              if (!a.isEliminated && b.isEliminated) return -1;
               // Sort by: completion first, then progress, then WPM
               if (a.completed && !b.completed) return -1;
               if (!a.completed && b.completed) return 1;
@@ -1430,14 +1710,14 @@ const MultiplayerGame = ({
                 transition={{ type: 'spring' }}
               >
                 {/* Result Banner - Your Position */}
-                <div className={`result-banner position-${myPosition}`}>
+                <div className={`result-banner ${tierFinalStats?.isDraw ? 'draw' : `position-${myPosition}`}`}>
                   <div className="banner-header">
-                    <span className="position-badge" style={{ '--pos-color': positionColors[myPosition - 1] }}>
-                      {positionLabels[myPosition - 1] || `${myPosition}th`}
+                    <span className="position-badge" style={{ '--pos-color': tierFinalStats?.isDraw ? '#64748b' : positionColors[myPosition - 1] }}>
+                      {tierFinalStats?.isDraw ? 'DRAW' : (positionLabels[myPosition - 1] || `${myPosition}th`)}
                     </span>
                   </div>
                   <span className="result-text">
-                    {myPosition === 1 ? 'VICTORY!' : myPosition === 2 ? 'CLOSE ONE!' : myPosition === 3 ? 'GOOD TRY!' : 'KEEP PRACTICING!'}
+                    {tierFinalStats?.isDraw ? 'NO WINNER!' : (myPosition === 1 ? 'VICTORY!' : myPosition === 2 ? 'CLOSE ONE!' : myPosition === 3 ? 'GOOD TRY!' : 'KEEP PRACTICING!')}
                   </span>
                   <div className="my-stats-row">
                     <span className="my-stat">{myStats?.wpm || 0} WPM</span>
@@ -1452,74 +1732,76 @@ const MultiplayerGame = ({
                   </div>
                 </div>
 
-                {/* Tier Mode: Horizontal Player Report Cards */}
+                {/* Tier Mode: Detailed Report with Eliminated Players */}
                 {isTierDetailed ? (
-                  <div className="tier-horizontal-report">
-                    {leaderboard.map((player, idx) => {
-                      const playerTheme = PLAYER_THEMES[player.theme] || PLAYER_THEMES[Object.keys(PLAYER_THEMES)[idx]] || PLAYER_THEMES.green;
-                      const isWinner = idx === 0 && !player.isEliminated;
-                      return (
-                        <motion.div
-                          key={player.id}
-                          className={`tier-player-card ${player.isMe ? 'you' : ''} ${isWinner ? 'winner' : ''} ${player.isEliminated ? 'eliminated' : ''}`}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.15 }}
-                        >
-                          {/* Position Badge */}
-                          <div className="tier-card-position" style={{ '--pos-color': positionColors[idx] || '#64748b' }}>
-                            {isWinner && <span className="crown-icon">👑</span>}
-                            <span className="position-number">{player.isEliminated ? '💀' : positionLabels[idx] || `${idx + 1}th`}</span>
-                          </div>
+                  <div className="tier-final-report">
+                    {/* Player Cards - One per line */}
+                    <div className="tier-report-list">
+                      {leaderboard.map((player, idx) => {
+                        const playerTheme = PLAYER_THEMES[player.theme] || PLAYER_THEMES[Object.keys(PLAYER_THEMES)[idx]] || PLAYER_THEMES.green;
+                        // No winner in draw scenario
+                        const isWinner = !tierFinalStats?.isDraw && idx === 0 && !player.isEliminated;
+                        return (
+                          <motion.div
+                            key={player.id}
+                            className={`tier-report-row ${player.isMe ? 'you' : ''} ${isWinner ? 'winner' : ''} ${player.isEliminated ? 'eliminated' : ''}`}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: idx * 0.1 }}
+                          >
+                            {/* Position */}
+                            <div className="tier-row-position" style={{ '--pos-color': player.isEliminated ? '#ef4444' : positionColors[idx] || '#64748b' }}>
+                              {isWinner && <span className="crown-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-1h14v1z"/></svg></span>}
+                              <span className="pos-num">{player.isEliminated ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg> : positionLabels[idx] || `${idx + 1}th`}</span>
+                            </div>
 
-                          {/* Player Info */}
-                          <div className="tier-card-header">
-                            <span className="tier-card-avatar" style={{ '--avatar-color': playerTheme?.primary || 'var(--primary)' }}>
-                              {player.avatarUrl ? (
-                                <img src={player.avatarUrl} alt={player.name} />
+                            {/* Player Info */}
+                            <div className="tier-row-player">
+                              <span className="tier-row-avatar" style={{ '--avatar-color': playerTheme?.primary || 'var(--primary)' }}>
+                                {player.avatarUrl ? (
+                                  <img src={player.avatarUrl} alt={player.name} />
+                                ) : (
+                                  player.name?.charAt(0).toUpperCase() || 'P'
+                                )}
+                              </span>
+                              <span className="tier-row-name">
+                                {player.isMe ? 'You' : player.name}
+                                {player.isMe && <span className="you-tag"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></span>}
+                              </span>
+                            </div>
+
+                            {/* Stats */}
+                            <div className="tier-row-stats">
+                              <span className="tier-row-stat primary">
+                                <span className="stat-value">{player.wpm || 0}</span>
+                                <span className="stat-label">WPM</span>
+                              </span>
+                              <span className="tier-row-stat">
+                                <span className="stat-value">{player.completedRounds || 0}/{TOTAL_TIER_ROUNDS}</span>
+                                <span className="stat-label">Rounds</span>
+                              </span>
+                              <span className="tier-row-stat">
+                                <span className="stat-value">{player.bestWpm || player.wpm || 0}</span>
+                                <span className="stat-label">Best</span>
+                              </span>
+                            </div>
+
+                            {/* Status Badge */}
+                            <div className={`tier-row-status ${player.isEliminated ? 'eliminated' : tierFinalStats?.isDraw ? 'draw' : isWinner ? 'winner' : 'survived'}`}>
+                              {player.isEliminated ? (
+                                <>ELIMINATED</>
+                              ) : tierFinalStats?.isDraw ? (
+                                <>DRAW</>
+                              ) : isWinner ? (
+                                <><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2z"/></svg> CHAMPION</>
                               ) : (
-                                player.name?.charAt(0).toUpperCase() || 'P'
+                                <><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> FINISHED</>
                               )}
-                            </span>
-                            <span className="tier-card-name">
-                              {player.isMe ? 'You' : player.name}
-                              {player.isMe && <span className="you-indicator">★</span>}
-                            </span>
-                          </div>
-
-                          {/* Stats Grid */}
-                          <div className="tier-card-stats">
-                            <div className="tier-stat-item primary">
-                              <span className="tier-stat-value">{player.wpm || 0}</span>
-                              <span className="tier-stat-label">Avg WPM</span>
                             </div>
-                            <div className="tier-stat-item">
-                              <span className="tier-stat-value">{player.accuracy || 0}%</span>
-                              <span className="tier-stat-label">Accuracy</span>
-                            </div>
-                            <div className="tier-stat-item">
-                              <span className="tier-stat-value">{player.completedRounds || 0}/{TOTAL_TIER_ROUNDS}</span>
-                              <span className="tier-stat-label">Rounds</span>
-                            </div>
-                            <div className="tier-stat-item">
-                              <span className="tier-stat-value">{player.bestWpm || player.wpm || 0}</span>
-                              <span className="tier-stat-label">Best WPM</span>
-                            </div>
-                          </div>
-
-                          {/* Status Indicator */}
-                          <div className={`tier-card-status ${player.isEliminated ? 'eliminated' : isWinner ? 'winner' : 'survived'}`}>
-                            {player.isEliminated ? (
-                              <span>❌ Eliminated</span>
-                            ) : isWinner ? (
-                              <span>🏆 Champion</span>
-                            ) : (
-                              <span>✓ Finished</span>
-                            )}
-                          </div>
-                        </motion.div>
-                      );
-                    })}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
                   </div>
                 ) : (
                   /* Standard Leaderboard Table for non-tier modes */
@@ -1608,14 +1890,51 @@ const MultiplayerGame = ({
                       </span>
                     </div>
                   )}
-                  <button className="gameover-btn secondary" onClick={onLeave}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                      <polyline points="16 17 21 12 16 7" />
-                      <line x1="21" y1="12" x2="9" y2="12" />
-                    </svg>
-                    Back to Lobby
-                  </button>
+                  
+                  {/* Tier Mode: Countdown bar to auto-return to lobby */}
+                  {mode === 'tier' && isTierDetailed && (
+                    <div className="final-result-countdown">
+                      <div className="final-countdown-info">
+                        <span className="final-countdown-text">Returning to lobby in {finalResultCountdown}s...</span>
+                      </div>
+                      <div className="final-countdown-bar-container">
+                        <motion.div
+                          className="final-countdown-bar-fill"
+                          initial={{ width: "100%" }}
+                          animate={{ width: "0%" }}
+                          transition={{ duration: 5, ease: "linear" }}
+                        />
+                      </div>
+                      <div className="final-countdown-buttons">
+                        <button className="gameover-btn primary" onClick={handleBackToLobby}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                            <polyline points="16 17 21 12 16 7" />
+                            <line x1="21" y1="12" x2="9" y2="12" />
+                          </svg>
+                          Back to Lobby
+                        </button>
+                        <button className="gameover-btn secondary" onClick={onLeave}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                          </svg>
+                          Leave Game
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Random mode or non-tier: just show Back to Lobby */}
+                  {mode !== 'tier' && (
+                    <button className="gameover-btn secondary" onClick={onLeave}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                      </svg>
+                      Back to Lobby
+                    </button>
+                  )}
                 </div>
               </motion.div>
             </motion.div>

@@ -551,6 +551,7 @@ io.on('connection', (socket) => {
 
             // Initialize cumulative stats for all players
             lobby.players.forEach(p => {
+              p.inGame = true; // Mark player as in game
               lobby.tierState.cumulativeStats.set(p.id, {
                 playerName: p.name,
                 totalWpm: 0,
@@ -573,6 +574,10 @@ io.on('connection', (socket) => {
           } else {
             // Random mode: Single paragraph
             const paragraphText = getParagraphForMode('random');
+            // Mark all players as in game
+            lobby.players.forEach(p => {
+              p.inGame = true;
+            });
             gameData = {
               mode: 'random',
               paragraphText
@@ -1056,17 +1061,25 @@ io.on('connection', (socket) => {
 
     // Game ends if: last round, only 1 player left, or no players left
     if (isLastRound || onlyOnePlayerLeft || noPlayersLeft) {
+      // Check for draw condition - if ALL players have 0 completed rounds, it's a draw
+      const allPlayersZeroRounds = leaderboard.every(p => p.completedRounds === 0);
+      const allPlayersZeroWpm = leaderboard.every(p => p.avgWpm === 0);
+      const isDraw = allPlayersZeroRounds && allPlayersZeroWpm;
+
       // Game over - emit final results
-      const winner = leaderboard.find(p => !p.isEliminated) || leaderboard[0];
+      // If it's a draw, winner is null
+      const winner = isDraw ? null : (leaderboard.find(p => !p.isEliminated) || leaderboard[0]);
+      
       io.to(roomId).emit('tier_game_complete', {
         leaderboard,
         winner,
         totalRounds: currentRound + 1,
-        reason: noPlayersLeft ? 'all_eliminated' : onlyOnePlayerLeft ? 'last_standing' : 'completed'
+        reason: isDraw ? 'draw' : (noPlayersLeft ? 'all_eliminated' : onlyOnePlayerLeft ? 'last_standing' : 'completed'),
+        isDraw
       });
 
-      // Track win for the winner (async, fire-and-forget)
-      if (winner) {
+      // Track win for the winner (async, fire-and-forget) - only if not a draw
+      if (winner && !isDraw) {
         const winnerPlayer = lobby.players.find(p => p.id === winner.playerId);
         if (winnerPlayer && winnerPlayer.mongoId) {
           User.findByIdAndUpdate(
@@ -1258,6 +1271,54 @@ io.on('connection', (socket) => {
         });
 
         console.log(`New round starting in lobby ${roomId} with new paragraph`);
+      }
+    }
+  });
+
+  // Player returns to lobby from game (eliminated player)
+  socket.on('return_to_lobby', ({ roomId }) => {
+    const lobby = lobbies.get(roomId);
+    if (!lobby) return;
+
+    const player = lobby.players.find(p => p.id === socket.id);
+    if (player) {
+      player.inGame = false;
+      
+      // Host stays ready, non-host players need to ready up again
+      const isHost = player.id === lobby.hostId;
+      player.isReady = isHost; // Host is always ready, others are not
+      
+      // Notify all players about this player's status change
+      io.to(roomId).emit('player_status_update', {
+        playerId: socket.id,
+        playerName: player.name,
+        inGame: false,
+        isReady: player.isReady
+      });
+
+      console.log(`${player.name} returned to lobby in ${lobby.name}`);
+
+      // Check if all players have returned to lobby
+      const allPlayersInLobby = lobby.players.every(p => !p.inGame);
+      
+      if (allPlayersInLobby && lobby.gameInProgress) {
+        // All players are back in lobby - reset game state for new game
+        lobby.gameInProgress = false;
+        lobby.tierState = null;
+        
+        // Reset all player ready states (host stays ready)
+        lobby.players.forEach(p => {
+          p.status = 'waiting';
+          p.isReady = p.id === lobby.hostId;
+        });
+        
+        // Notify all players that game has reset and they can ready up again
+        io.to(roomId).emit('game_reset', {
+          players: lobby.players,
+          message: 'Game ended. Ready up to play again!'
+        });
+        
+        console.log(`Game reset in lobby ${lobby.name} - ready for new game`);
       }
     }
   });

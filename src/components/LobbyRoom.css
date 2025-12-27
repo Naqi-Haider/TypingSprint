@@ -1310,6 +1310,36 @@
   text-transform: uppercase;
 }
 
+/* Status Indicators */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-indicator.in-game {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid #3b82f6;
+  color: #3b82f6;
+}
+
+.status-indicator.ready {
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid #22c55e;
+  color: #22c55e;
+}
+
+.status-indicator.not-ready {
+  background: rgba(100, 116, 139, 0.2);
+  border: 1px solid #64748b;
+  color: #64748b;
+}
+
 /* ========== Profile Modal ========== */
 .profile-modal-overlay {
   position: fixed;

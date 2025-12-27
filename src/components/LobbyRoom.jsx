@@ -180,6 +180,21 @@ const LobbyRoom = ({
       setPlayers(prev => prev.filter(p => p.id !== data.playerId));
     });
 
+    // Listen for player status updates (in game / in lobby)
+    newSocket.on('player_status_update', (data) => {
+      console.log('Player status update:', data);
+      setPlayers(prev => prev.map(p => 
+        p.id === data.playerId 
+          ? { ...p, inGame: data.inGame, isReady: data.isReady }
+          : p
+      ));
+      
+      // If this is the current player, update local isReady state
+      if (data.playerId === newSocket.id) {
+        setIsReady(data.isReady);
+      }
+    });
+
     // Listen for settings updates
     newSocket.on('settings_updated', (data) => {
       console.log('Settings updated:', data);
@@ -223,6 +238,24 @@ const LobbyRoom = ({
       setAllPlayersReady(true);
       // The actual countdown will be triggered by game_starting event from server
       // This ensures all players are synchronized
+    });
+
+    // Listen for game reset (all players returned to lobby after game ended)
+    newSocket.on('game_reset', (data) => {
+      console.log('Game reset:', data.message);
+      setPlayers(data.players);
+      setGameStarted(false);
+      setLobbyStatus('waiting');
+      setGameStarting(false);
+      setCountdown(0);
+      setParagraphText('');
+      setTierParagraphs([]);
+      setAllPlayersReady(false);
+      // Update local ready state based on whether we're the host
+      const currentPlayer = data.players.find(p => p.id === newSocket.id);
+      if (currentPlayer) {
+        setIsReady(currentPlayer.isReady);
+      }
     });
 
     // Password required for protected lobbies
@@ -363,7 +396,10 @@ const LobbyRoom = ({
 
   const handleToggleReady = () => {
     if (socket && !isHost) {
-      const newReadyState = !isReady;
+      // Get the current ready state from the players array for accuracy
+      const currentPlayer = players.find(p => p.id === socket.id);
+      const currentReadyState = currentPlayer?.isReady ?? isReady;
+      const newReadyState = !currentReadyState;
       setIsReady(newReadyState);
       socket.emit('player_ready', { roomId, isReady: newReadyState });
     }
@@ -417,6 +453,29 @@ const LobbyRoom = ({
   const isFull = players.length >= lobbyData.maxPlayers;
   const allReady = players.length > 0 && players.every(p => p.isReady);
   const canStartGame = isFull && allReady && isHost;
+  
+  // Handler to return to lobby without leaving room (for eliminated players)
+  const handleReturnToLobby = () => {
+    // Notify server that this player is returning to lobby
+    if (socket && roomId) {
+      socket.emit('return_to_lobby', { roomId });
+    }
+    setGameStarted(false);
+    setLobbyStatus('waiting');
+    setParagraphText('');
+    setTierParagraphs([]);
+    setGameStarting(false); // Reset game starting state
+    setCountdown(0); // Reset countdown
+    setAllPlayersReady(false); // Reset all players ready flag
+    
+    // Force non-hosts to non-ready state (host is always ready)
+    // The server will send player_status_update which will set the correct state
+    // But we also set it locally immediately for responsiveness
+    const currentPlayer = players.find(p => p.id === socket?.id);
+    const isCurrentPlayerHost = currentPlayer?.isHost || socket?.id === lobbyData.hostId;
+    setIsReady(isCurrentPlayerHost); // Host stays ready, non-hosts become not-ready
+  };
+
   const themeClass = THEME_CLASSES[currentTheme] || '';
 
   // Status-based rendering for seamless transitions
@@ -433,6 +492,7 @@ const LobbyRoom = ({
         mode={actualGameMode}
         skipCountdown={false} // Let MultiplayerGame handle the color indicator countdown
         onLeave={handleLeave}
+        onReturnToLobby={handleReturnToLobby}
       />
     );
   }
@@ -650,18 +710,33 @@ const LobbyRoom = ({
                         </span>
                       </div>
 
-                      {/* Ready Badge */}
-                      {player.isReady && (
-                        <div className="ready-indicator">
+                      {/* Status Badge - In Game / Ready / Not Ready */}
+                      {player.inGame ? (
+                        <div className="status-indicator in-game">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+                            <polygon points="10,8 16,12 10,16" fill="currentColor" />
+                          </svg>
+                          In Game
+                        </div>
+                      ) : player.isReady ? (
+                        <div className="status-indicator ready">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                             <polyline points="20 6 9 17 4 12" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                           Ready
                         </div>
+                      ) : (
+                        <div className="status-indicator not-ready">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+                          </svg>
+                          Not Ready
+                        </div>
                       )}
 
                       {/* Ready button for current user */}
-                      {player.id === socket?.id && !player.isHost && (
+                      {player.id === socket?.id && !player.isHost && !player.inGame && (
                         <button
                           className={`ready-toggle-btn ${player.isReady ? 'ready' : ''}`}
                           onClick={handleToggleReady}
