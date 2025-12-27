@@ -1,0 +1,31 @@
+.hero-typewriter {
+  display: block;
+  width: 100%;
+  font-size: 1.1rem;
+  font-family: var(--font-primary);
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.hero-typewriter-text {
+  color: var(--text-secondary);
+  font-weight: normal;
+  font-family: var(--font-primary);
+}
+
+.hero-cursor {
+  color: var(--text-secondary);
+  animation: blink 1s step-end infinite;
+  font-weight: normal;
+  margin-left: 2px;
+  font-family: var(--font-primary);
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}

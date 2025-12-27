@@ -1,0 +1,194 @@
+.paragraph-results-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+}
+
+.paragraph-results-card {
+  max-width: 750px;
+  width: 100%;
+  background: rgba(13, 20, 13, 0.95);
+  border: 2px solid var(--primary, #4e8c43);
+  border-radius: 14px;
+  padding: var(--spacing-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.paragraph-results-card .results-header {
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 2px solid var(--glass-border, rgba(78, 140, 67, 0.3));
+}
+
+.paragraph-results-card .results-title {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  margin-bottom: var(--spacing-xs);
+}
+
+.paragraph-results-card .results-subtitle {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+}
+
+/* Horizontal Layout: Report Left, Buttons Right */
+.paragraph-results-card .results-content {
+  display: flex;
+  gap: var(--spacing-lg);
+  align-items: center;
+}
+
+/* Left: Performance Report */
+.results-report {
+  flex: 1;
+}
+
+.report-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-xs) 0;
+}
+
+.report-label {
+  font-family: var(--font-primary);
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.report-value {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+  letter-spacing: 1px;
+}
+
+.report-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(78, 140, 67, 0.3), transparent);
+  margin: 0;
+}
+
+/* Vertical Divider */
+.results-vertical-divider {
+  width: 2px;
+  min-height: 250px;
+  background: linear-gradient(to bottom, transparent, var(--glass-border, rgba(78, 140, 67, 0.5)), transparent);
+}
+
+/* Right: Buttons */
+.results-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  justify-content: center;
+  min-width: 180px;
+}
+
+.paragraph-results-card .restart-button,
+.paragraph-results-card .home-button {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: rgba(var(--primary-rgb, 78, 140, 67), 0.2);
+  color: var(--primary, #4e8c43);
+  border: 2px solid var(--primary, #4e8c43);
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: var(--font-display);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  transition: all var(--transition-normal);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+.paragraph-results-card .restart-button:hover,
+.paragraph-results-card .home-button:hover {
+  transform: translateY(-2px);
+  background: rgba(var(--primary-rgb, 78, 140, 67), 0.3);
+  box-shadow: 0 4px 12px rgba(var(--primary-rgb, 78, 140, 67), 0.3);
+}
+
+.paragraph-results-card .restart-button:active,
+.paragraph-results-card .home-button:active {
+  transform: translateY(0);
+}
+
+.paragraph-results-card .home-button {
+  background: transparent;
+  border-color: var(--glass-border, rgba(78, 140, 67, 0.4));
+  color: var(--text-secondary);
+}
+
+.paragraph-results-card .home-button:hover {
+  background: rgba(var(--primary-rgb, 78, 140, 67), 0.1);
+  border-color: var(--primary, #4e8c43);
+  color: var(--primary, #4e8c43);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .results-content {
+    flex-direction: column;
+  }
+
+  .results-vertical-divider {
+    width: 100%;
+    height: 2px;
+    min-height: auto;
+    background: linear-gradient(to right, transparent, rgba(78, 140, 67, 0.5), transparent);
+  }
+
+  .results-title {
+    font-size: 1.8rem;
+  }
+
+  .report-label {
+    font-size: 0.95rem;
+  }
+
+  .report-value {
+    font-size: 1.1rem;
+  }
+
+  .results-buttons {
+    width: 100%;
+    min-width: auto;
+  }
+}
+
+/* Paper Theme - Light Mode Override */
+.theme-paper .paragraph-results-card {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: #2f4f4f !important;
+}
+
+.theme-paper .paragraph-results-card .results-header {
+  border-bottom-color: rgba(47, 79, 79, 0.3) !important;
+}
+
+.theme-paper .paragraph-results-card .results-title {
+  color: #2f4f4f !important;
+}
+
+.theme-paper .paragraph-results-card .results-subtitle,
+.theme-paper .paragraph-results-card .report-label {
+  color: #555555 !important;
+}
+
+.theme-paper .paragraph-results-card .report-value {
+  color: #1a1a1a !important;
+}

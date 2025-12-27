@@ -1,0 +1,546 @@
+.paragraph-engine-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+}
+
+/* Start Screen */
+.start-screen {
+  text-align: center;
+  max-width: 600px;
+}
+
+.start-screen h1 {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  margin-bottom: var(--spacing-md);
+}
+
+.start-screen p {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xl);
+}
+
+.start-button {
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: var(--accent-primary);
+  color: var(--text-primary);
+  border: none;
+  border-radius: 12px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  font-family: var(--font-display);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  transition: all var(--transition-normal);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  box-shadow: 0 4px 16px rgba(var(--primary-rgb, 78, 140, 67), 0.4);
+}
+
+.start-button:hover {
+  transform: scale(1.05);
+  background: var(--accent-secondary);
+  box-shadow: 0 6px 20px rgba(var(--primary-rgb, 78, 140, 67), 0.6);
+}
+
+.start-button:active {
+  transform: scale(0.98);
+}
+
+/* Countdown Screen - Ready Set Go */
+.countdown-screen {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: var(--bg-color, #0a0a0a);
+  z-index: 100;
+}
+
+.countdown-content {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  overflow: hidden;
+}
+
+.countdown-number {
+  font-family: var(--font-display);
+  font-size: 5rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--primary, #22c55e), rgba(var(--primary-rgb, 34, 197, 94), 0.7));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: slideUpIn 0.5s ease-out;
+  line-height: 1.1;
+}
+
+.countdown-text {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  animation: slideUpIn 0.5s ease-out 0.1s both;
+}
+
+@keyframes slideUpIn {
+  0% {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Game Section */
+.paragraph-game-section {
+  max-width: 1200px;
+  width: 100%;
+  background: var(--bg-card, rgba(13, 20, 13, 0.95));
+  border: 2px solid var(--primary, #4e8c43);
+  border-radius: 16px;
+  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* Header with Difficulty and Timer */
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--glass-border, rgba(78, 140, 67, 0.3));
+}
+
+.difficulty-badge {
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: 20px;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.timer-display {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.timer-warning {
+  color: #e74c3c;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.bonus-indicator {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: rgba(243, 156, 18, 0.2);
+  border: 2px solid #f39c12;
+  border-radius: 20px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #f39c12;
+  animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Main Content - Horizontal Layout */
+.game-content {
+  display: flex;
+  gap: var(--spacing-xl);
+  align-items: flex-start;
+}
+
+/* Left Section: Paragraph Display */
+.paragraph-section {
+  flex: 1.5;
+  min-width: 0;
+}
+
+.paragraph-display {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--glass-border, rgba(78, 140, 67, 0.3));
+  border-radius: 12px;
+  padding: var(--spacing-lg);
+  font-family: var(--font-primary);
+  font-size: 1.1rem;
+  /* Reduced from 1.3rem for better fit */
+  line-height: 1.7;
+  /* Reduced from 1.8 */
+  letter-spacing: 0.3px;
+  word-wrap: break-word;
+  min-height: 250px;
+  max-height: 350px;
+  /* Add max height */
+  overflow-y: auto;
+  /* Allow scroll if needed */
+}
+
+/* Paper Theme - Dark background for paragraph display */
+.theme-paper .paragraph-display {
+  background: rgba(0, 0, 0, 0.75) !important;
+  border-color: rgba(47, 79, 79, 0.4) !important;
+}
+
+.paragraph-display span {
+  transition: all 0.1s ease;
+}
+
+.char-correct {
+  color: var(--accent-primary);
+}
+
+.char-incorrect {
+  color: #e74c3c;
+  background: rgba(231, 76, 60, 0.2);
+  border-radius: 2px;
+}
+
+.char-current {
+  border-bottom: 3px solid var(--accent-primary);
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+
+  0%,
+  50% {
+    border-bottom-color: var(--accent-primary);
+  }
+
+  51%,
+  100% {
+    border-bottom-color: transparent;
+  }
+}
+
+.char-pending {
+  color: var(--text-secondary);
+}
+
+/* Right Section: Combo Status */
+.combo-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--glass-border, rgba(78, 140, 67, 0.3));
+  border-radius: 12px;
+  padding: var(--spacing-lg);
+  min-height: 250px;
+}
+
+/* Combo Wrapper - Contains Combo and Streak */
+.combo-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  justify-content: center;
+}
+
+/* Combo Display */
+.combo-display {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 900;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+/* Streak Counter */
+.streak-counter {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  opacity: 0.9;
+}
+
+/* Glow effect for START and PERFECT */
+.combo-glow {
+  animation: comboGlow 1.5s ease-in-out infinite;
+}
+
+@keyframes comboGlow {
+
+  0%,
+  100% {
+    text-shadow: 0 0 20px currentColor, 0 0 30px currentColor;
+    opacity: 1;
+  }
+
+  50% {
+    text-shadow: 0 0 30px currentColor, 0 0 50px currentColor, 0 0 60px currentColor;
+    opacity: 0.8;
+  }
+}
+
+/* Horizontal Divider between Combo and Stats */
+.combo-divider-horizontal {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--glass-border, rgba(78, 140, 67, 0.5)), transparent);
+  margin: var(--spacing-sm) 0;
+}
+
+/* Combo Stats */
+.combo-stats {
+  display: flex;
+  gap: var(--spacing-md);
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+}
+
+.combo-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex: 1;
+}
+
+.combo-stat .stat-value {
+  font-size: 1.8rem;
+  font-weight: 900;
+  font-family: var(--font-display);
+  color: var(--accent-primary);
+  line-height: 1;
+}
+
+.combo-stat .stat-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Vertical Divider between Stats */
+.combo-divider-vertical {
+  width: 1px;
+  height: 50px;
+  background: linear-gradient(to bottom, transparent, var(--glass-border, rgba(78, 140, 67, 0.5)), transparent);
+}
+
+/* Hidden Input */
+.hidden-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .game-content {
+    flex-direction: column;
+  }
+
+  .paragraph-section,
+  .combo-section {
+    flex: 1;
+    width: 100%;
+  }
+
+  .combo-display {
+    font-size: 2.5rem;
+  }
+
+  .streak-counter {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .paragraph-game-section {
+    padding: var(--spacing-md);
+  }
+
+  .paragraph-display {
+    font-size: 1rem;
+    line-height: 1.5;
+    padding: var(--spacing-md);
+    min-height: 200px;
+  }
+
+  .combo-display {
+    font-size: 2rem;
+    letter-spacing: 2px;
+  }
+
+  .streak-counter {
+    font-size: 1.2rem;
+  }
+
+  .combo-stat .stat-value {
+    font-size: 1.5rem;
+  }
+
+  .combo-divider-vertical {
+    height: 40px;
+  }
+}
+
+/* Override GameEngine.css absolute positioning for timer */
+.paragraph-game-section .timer-display {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  min-width: auto !important;
+}
+
+/* Paper Theme - Light Mode Override */
+.theme-paper .paragraph-game-section {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: #2f4f4f !important;
+}
+
+.theme-paper .game-header {
+  border-bottom-color: rgba(47, 79, 79, 0.3) !important;
+}
+
+.theme-paper .paragraph-display {
+  background: rgba(47, 79, 79, 0.08) !important;
+  border-color: rgba(47, 79, 79, 0.3) !important;
+}
+
+.theme-paper .combo-section {
+  background: rgba(47, 79, 79, 0.08) !important;
+  border-color: rgba(47, 79, 79, 0.3) !important;
+}
+
+.theme-paper .combo-divider-horizontal,
+.theme-paper .combo-divider-vertical {
+  background: linear-gradient(to right, transparent, rgba(47, 79, 79, 0.5), transparent) !important;
+}
+
+.theme-paper .combo-stat-label {
+  color: #555555 !important;
+}
+
+.theme-paper .combo-stat-value {
+  color: #1a1a1a !important;
+}
+
+.theme-paper .timer-value {
+  color: #2f4f4f !important;
+}
+
+
+/* Paper Theme - Paragraph Text Visibility */
+.theme-paper .paragraph-display {
+  color: #2f4f4f !important;
+  background-color: rgba(225, 225, 225, 0.4) !important;
+  border-color: rgba(47, 79, 79, 0.3) !important;
+}
+
+.theme-paper .char-pending {
+  color: #555555 !important;
+  opacity: 0.8 !important;
+}
+
+.theme-paper .char-correct {
+  color: #000000 !important;
+  /* Pure black for maximum contrast */
+  font-weight: 500 !important;
+}
+
+.theme-paper .char-incorrect {
+  color: #dc2626 !important;
+  background: rgba(220, 38, 38, 0.15) !important;
+  border-bottom: 2px solid #dc2626 !important;
+}
+
+.theme-paper .char-current {
+  border-bottom-color: #2f4f4f !important;
+  background: rgba(47, 79, 79, 0.1) !important;
+  /* Subtle highlight for current char */
+  color: #1a1a1a !important;
+}
+
+.theme-paper .combo-display {
+  color: #2f4f4f !important;
+}
+
+.theme-paper .streak-counter {
+  color: #2f4f4f !important;
+}
+
+.theme-paper .combo-stat .stat-value {
+  color: #1a1a1a !important;
+}
+
+.theme-paper .combo-stat .stat-label {
+  color: #555555 !important;
+}
+
+.theme-paper .timer-display {
+  color: #2f4f4f !important;
+}

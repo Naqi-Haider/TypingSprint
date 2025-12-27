@@ -1,0 +1,405 @@
+/* Global Styles & Design System */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+
+/* Custom BoldPixels Font */
+@font-face {
+  font-family: 'BoldPixels';
+  src: url('./assets/fonts/BoldPixels.otf') format('opentype'),
+    url('./assets/fonts/BoldPixels.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Theme Colors - Retro Terminal (Default) */
+  --primary: #22c55e;
+  --primary-dark: #16a34a;
+  --primary-light: #4ade80;
+  --primary-rgb: 34, 197, 94;
+  --bg: #000000;
+  --bg-secondary: #0b140e;
+  --bg-card: #1a1a1a;
+
+  /* Semantic color mapping */
+  --bg-color: var(--bg);
+  --bg-panel: var(--bg-secondary);
+  --border-color: var(--primary);
+  --text-main: #F2F7E4;
+
+  /* Derived colors from theme */
+  --accent-primary: var(--primary);
+  --accent-secondary: var(--primary-dark);
+  --accent-dark: var(--primary-dark);
+  --bg-primary: var(--bg);
+
+  /* Universal colors */
+  --success: var(--primary);
+  --error: #ff4444;
+  --warning: #ffaa00;
+
+  --text-primary: #F2F7E4;
+  --text-secondary: #a0a89a;
+  --text-muted: #505850;
+  --bg-light: #F2F7E4;
+
+  /* Glass Effect - uses theme primary */
+  --glass-bg: rgba(34, 197, 94, 0.05);
+  --glass-border: rgba(34, 197, 94, 0.2);
+
+  /* Spacing */
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 1rem;
+  --spacing-md: 1.5rem;
+  --spacing-lg: 2rem;
+  --spacing-xl: 3rem;
+
+  /* Typography */
+  --font-primary: 'Consolas', 'Courier New', monospace;
+  --font-display: 'BoldPixels', 'Orbitron', sans-serif;
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+/* Theme: Cyber Blue */
+.theme-blue {
+  --primary: #06b6d4;
+  --primary-dark: #0891b2;
+  --primary-light: #22d3ee;
+  --primary-rgb: 6, 182, 212;
+  --bg: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-card: #334155;
+  --bg-color: #0f172a;
+  --bg-panel: #1e293b;
+  --border-color: #06b6d4;
+  --text-main: #e2e8f0;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --glass-bg: rgba(6, 182, 212, 0.05);
+  --glass-border: rgba(6, 182, 212, 0.2);
+}
+
+/* Theme: Sakura Night (Dark Grey + Soft Pink) */
+.theme-sakura {
+  --primary: #ffafcc;
+  --primary-dark: #ff8fab;
+  --primary-light: #ffc8dd;
+  --primary-rgb: 255, 175, 204;
+  --bg: #2c2c2c;
+  --bg-secondary: #363636;
+  --bg-card: #404040;
+  --bg-color: #2c2c2c;
+  --bg-panel: #363636;
+  --border-color: #ffafcc;
+  --text-main: #ffffff;
+  --text-primary: #ffffff;
+  --text-secondary: #ffc8dd;
+  --text-muted: #a08090;
+  --glass-bg: rgba(255, 175, 204, 0.05);
+  --glass-border: rgba(255, 175, 204, 0.2);
+}
+
+/* Theme: Paper Mode (Light Theme) */
+.theme-paper {
+  --primary: #2f4f4f;
+  --primary-dark: #1a3333;
+  --primary-light: #3d6666;
+  --primary-rgb: 47, 79, 79;
+  --bg: #f5f5f5;
+  --bg-secondary: #ebebeb;
+  --bg-card: #ffffff;
+  --bg-color: #f5f5f5;
+  --bg-panel: #ebebeb;
+  --border-color: #2f4f4f;
+  --text-main: #333333;
+  --text-primary: #333333;
+  --text-secondary: #555555;
+  --text-muted: #888888;
+  --glass-bg: rgba(47, 79, 79, 0.05);
+  --glass-border: rgba(47, 79, 79, 0.2);
+}
+
+/* Paper Theme - Input Contrast Fix */
+.theme-paper .input-display {
+  color: #1a1a1a !important;
+  background: rgba(47, 79, 79, 0.08);
+  border-color: rgba(47, 79, 79, 0.3);
+}
+
+.theme-paper .console-paragraph,
+.theme-paper .char {
+  color: #1a1a1a !important;
+}
+
+/* Paper Theme - Input Fields (dark bg needs light text) */
+.theme-paper .control-input,
+.theme-paper .control-textarea,
+.theme-paper input[type="text"],
+.theme-paper input[type="password"],
+.theme-paper input[type="email"],
+.theme-paper textarea {
+  color: #ffffff !important;
+  background: rgba(47, 79, 79, 0.85) !important;
+  border-color: rgba(47, 79, 79, 0.6) !important;
+}
+
+.theme-paper .control-input::placeholder,
+.theme-paper .control-textarea::placeholder,
+.theme-paper input::placeholder,
+.theme-paper textarea::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Paper Theme - Gameplay Text Visibility */
+.theme-paper .current-word,
+.theme-paper .word-display {
+  color: #1a1a1a !important;
+}
+
+.theme-paper .word.prev,
+.theme-paper .word.next,
+.theme-paper .word-item.past,
+.theme-paper .word-item.future {
+  color: #888888 !important;
+}
+
+/* Paper Theme - Speed Bullet Character States */
+.theme-paper .char {
+  color: #888888 !important;
+}
+
+.theme-paper .char.current {
+  color: #1a1a1a !important;
+}
+
+.theme-paper .char.correct {
+  color: #ffffff !important;
+  text-shadow: 0 0 8px rgba(47, 79, 79, 0.8);
+}
+
+.theme-paper .char.incorrect {
+  color: #cc0000 !important;
+  background: rgba(204, 0, 0, 0.2) !important;
+}
+
+/* Paper Theme - Timer/Score Box */
+.theme-paper .timer-score-box {
+  background: rgba(30, 40, 40, 0.95) !important;
+  border-color: #2f4f4f !important;
+  box-shadow: 0 4px 20px rgba(47, 79, 79, 0.3) !important;
+}
+
+.theme-paper .timer-value,
+.theme-paper .score-icon {
+  color: #5a8a8a !important;
+}
+
+.theme-paper .score-value {
+  color: #ffffff !important;
+}
+
+.theme-paper .timer-label,
+.theme-paper .score-label {
+  color: #aaaaaa !important;
+}
+
+/* Paper Theme - Input display for speed-bullet */
+.theme-paper .input-display {
+  color: #1a1a1a !important;
+  background: rgba(47, 79, 79, 0.1) !important;
+  border-color: rgba(47, 79, 79, 0.4) !important;
+}
+
+/* Paper Theme - Error states must remain visible */
+.theme-paper .input-display.error,
+.theme-paper .word-display.error,
+.theme-paper .char-incorrect {
+  color: #cc0000 !important;
+  background: rgba(204, 0, 0, 0.15) !important;
+  border-color: #cc0000 !important;
+}
+
+/* Paper Theme - Paragraph mode char colors */
+.theme-paper .char-correct {
+  color: #2f4f4f !important;
+}
+
+.theme-paper .char-pending {
+  color: #666666 !important;
+}
+
+.theme-paper .char-current {
+  border-bottom-color: #2f4f4f !important;
+}
+
+/* Paper Theme - Game Stats */
+.theme-paper .game-stats {
+  background: rgba(47, 79, 79, 0.08) !important;
+  border: 1px solid rgba(47, 79, 79, 0.2) !important;
+}
+
+.theme-paper .stat-value {
+  color: #2f4f4f !important;
+}
+
+.theme-paper .stat-label {
+  color: #555555 !important;
+}
+
+/* Theme: Matrix Gold (Premium) */
+.theme-gold {
+  --primary: #eab308;
+  --primary-dark: #ca8a04;
+  --primary-light: #fbbf24;
+  --primary-rgb: 234, 179, 8;
+  --bg: #1a1a1a;
+  --bg-secondary: #262626;
+  --bg-card: #333333;
+  --bg-color: #1a1a1a;
+  --bg-panel: #262626;
+  --border-color: #eab308;
+  --text-main: #fef3c7;
+  --text-primary: #fef3c7;
+  --text-secondary: #fcd34d;
+  --text-muted: #a16207;
+  --glass-bg: rgba(234, 179, 8, 0.05);
+  --glass-border: rgba(234, 179, 8, 0.2);
+}
+
+/* Theme: Obsidian (Monochrome) */
+.theme-obsidian {
+  --primary: #ffffff;
+  --primary-dark: #a3a3a3;
+  --primary-light: #e5e5e5;
+  --primary-rgb: 255, 255, 255;
+  --bg: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-card: #171717;
+  --bg-color: #000000;
+  --bg-panel: #0a0a0a;
+  --border-color: #404040;
+  --text-main: #e5e5e5;
+  --text-primary: #e5e5e5;
+  --text-secondary: #a3a3a3;
+  --text-muted: #525252;
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+/* Global theme-reactive rules */
+section,
+header,
+footer,
+.hero-content,
+.mode-card,
+.preview-container,
+.game-card,
+.auth-modal {
+  background-color: var(--bg-panel);
+  color: var(--text-main);
+  border-color: var(--border-color);
+}
+
+/* Reset & Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-primary);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  position: relative;
+  overflow: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle 400px at var(--mouse-x, 50%) var(--mouse-y, 50%),
+      rgba(242, 247, 228, 0.08),
+      transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+  transition: background 0.2s ease-out;
+}
+
+#root {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent-primary);
+  border-radius: 3px;
+}
+
+/* Selection */
+::selection {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+/* Utility Classes */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+}
+
+.gradient-text {
+  color: var(--accent-primary);
+}
+
+/* Simple fade animation only */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}

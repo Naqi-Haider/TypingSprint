@@ -1,0 +1,47 @@
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 0.9rem var(--spacing-lg);
+  background: var(--bg-color, var(--bg));
+  border-bottom: 1px solid var(--border-color, var(--primary));
+  transition: background-color var(--transition-normal), border-color var(--transition-normal);
+}
+
+.navbar-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  transition: opacity var(--transition-normal);
+  cursor: url('/src/assets/hand-cursor-24.png'), pointer !important;
+}
+
+.logo:hover {
+  opacity: 0.8;
+}
+
+.logo-icon {
+  width: 28px;
+  height: 28px;
+  filter: brightness(1.2);
+  transition: filter var(--transition-normal);
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0.7rem var(--spacing-sm);
+  }
+
+  .logo-icon {
+    width: 24px;
+    height: 24px;
+  }
+}
