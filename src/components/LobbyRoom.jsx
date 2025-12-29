@@ -152,12 +152,6 @@ const LobbyRoom = ({
     // Listen for initial room state (Task 4: Synchronized loader)
     newSocket.on('current_room_state', (data) => {
       console.log('Current room state received:', data);
-      // Debug: Log player states
-      console.log('Player states received:', data.players?.map(p => ({
-        name: p.name,
-        inGame: p.inGame,
-        isReady: p.isReady
-      })));
       setPlayers(data.players || []);
       setLobbyData({
         hostId: data.hostId || data.players?.find(p => p.isHost)?.id,
@@ -189,12 +183,12 @@ const LobbyRoom = ({
     // Listen for player status updates (in game / in lobby)
     newSocket.on('player_status_update', (data) => {
       console.log('Player status update:', data);
-      setPlayers(prev => prev.map(p =>
-        p.id === data.playerId
+      setPlayers(prev => prev.map(p => 
+        p.id === data.playerId 
           ? { ...p, inGame: data.inGame, isReady: data.isReady }
           : p
       ));
-
+      
       // If this is the current player, update local isReady state
       if (data.playerId === newSocket.id) {
         setIsReady(data.isReady);
@@ -459,7 +453,7 @@ const LobbyRoom = ({
   const isFull = players.length >= lobbyData.maxPlayers;
   const allReady = players.length > 0 && players.every(p => p.isReady);
   const canStartGame = isFull && allReady && isHost;
-
+  
   // Handler to return to lobby without leaving room (for eliminated players)
   const handleReturnToLobby = () => {
     // Notify server that this player is returning to lobby
@@ -473,7 +467,7 @@ const LobbyRoom = ({
     setGameStarting(false); // Reset game starting state
     setCountdown(0); // Reset countdown
     setAllPlayersReady(false); // Reset all players ready flag
-
+    
     // Force non-hosts to non-ready state (host is always ready)
     // The server will send player_status_update which will set the correct state
     // But we also set it locally immediately for responsiveness
