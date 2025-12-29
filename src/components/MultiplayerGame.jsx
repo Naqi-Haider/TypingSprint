@@ -570,19 +570,27 @@ const MultiplayerGame = ({
       
       const timer = setInterval(() => {
         setSpectatorLoadingProgress(prev => {
-          if (prev >= 100) {
+          const newProgress = prev + step;
+          if (newProgress >= 100) {
             clearInterval(timer);
-            setIsSpectating(true);
-            setSpectatorLoading(false);
             return 100;
           }
-          return prev + step;
+          return newProgress;
         });
       }, interval);
       
       return () => clearInterval(timer);
     }
   }, [spectatorLoading, isSpectating]);
+
+  // When spectator loading completes (progress reaches 100), activate spectating
+  useEffect(() => {
+    if (spectatorLoading && spectatorLoadingProgress >= 100) {
+      setIsSpectating(true);
+      setSpectatorLoading(false);
+      setSpectatorLoadingProgress(0); // Reset for next time
+    }
+  }, [spectatorLoading, spectatorLoadingProgress]);
 
   // Handler for back to lobby button - return to lobby without leaving the room
   const handleBackToLobby = useCallback(() => {

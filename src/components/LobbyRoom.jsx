@@ -469,11 +469,17 @@ const LobbyRoom = ({
     setAllPlayersReady(false); // Reset all players ready flag
     
     // Force non-hosts to non-ready state (host is always ready)
-    // The server will send player_status_update which will set the correct state
-    // But we also set it locally immediately for responsiveness
-    const currentPlayer = players.find(p => p.id === socket?.id);
-    const isCurrentPlayerHost = currentPlayer?.isHost || socket?.id === lobbyData.hostId;
-    setIsReady(isCurrentPlayerHost); // Host stays ready, non-hosts become not-ready
+    const isCurrentPlayerHost = socket?.id === lobbyData.hostId;
+    const newIsReady = isCurrentPlayerHost; // Host stays ready, non-hosts become not-ready
+    setIsReady(newIsReady);
+    
+    // ALSO update the players array immediately for responsive UI
+    // Server will send the authoritative update via player_status_update
+    setPlayers(prev => prev.map(p => 
+      p.id === socket?.id 
+        ? { ...p, inGame: false, isReady: newIsReady }
+        : p
+    ));
   };
 
   const themeClass = THEME_CLASSES[currentTheme] || '';
