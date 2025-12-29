@@ -447,6 +447,7 @@ io.on('connection', (socket) => {
           mongoId: user.mongoId || null,
           isHost: isHostJoining,
           isReady: isHostJoining,
+          inGame: false, // Explicitly initialize to prevent undefined
           status: 'ready', // ready, playing, spectating, eliminated
           stats: user.stats || { wpm: 0, precision: 95, matchesWon: 0 }
         };
@@ -465,6 +466,13 @@ io.on('connection', (socket) => {
 
       // Join socket room and send current state (whether new or existing player)
       socket.join(roomId);
+
+      // Debug: Log player states being sent
+      console.log('Sending current_room_state - Player states:', lobby.players.map(p => ({
+        name: p.name,
+        inGame: p.inGame,
+        isReady: p.isReady
+      })));
 
       socket.emit('current_room_state', {
         hostId: lobby.hostId,
@@ -562,6 +570,8 @@ io.on('connection', (socket) => {
                 chances: 0,
                 isEliminated: false
               });
+              // Mark player as in game
+              p.inGame = true;
             });
 
             gameData = {
@@ -585,6 +595,17 @@ io.on('connection', (socket) => {
           }
 
           io.to(roomId).emit('game_starting', gameData);
+
+          // Broadcast status update to lobby so returning players see "In Game" status
+          lobby.players.forEach(p => {
+            io.to(roomId).emit('player_status_update', {
+              playerId: p.id,
+              playerName: p.name,
+              inGame: true,
+              isReady: p.isReady
+            });
+          });
+
           console.log(`Game starting in lobby ${lobby.name} - Mode: ${lobby.mode}`);
         }
       }
@@ -1069,7 +1090,7 @@ io.on('connection', (socket) => {
       // Game over - emit final results
       // If it's a draw, winner is null
       const winner = isDraw ? null : (leaderboard.find(p => !p.isEliminated) || leaderboard[0]);
-      
+
       io.to(roomId).emit('tier_game_complete', {
         leaderboard,
         winner,
@@ -1283,11 +1304,11 @@ io.on('connection', (socket) => {
     const player = lobby.players.find(p => p.id === socket.id);
     if (player) {
       player.inGame = false;
-      
+
       // Host stays ready, non-host players need to ready up again
       const isHost = player.id === lobby.hostId;
       player.isReady = isHost; // Host is always ready, others are not
-      
+
       // Notify all players about this player's status change
       io.to(roomId).emit('player_status_update', {
         playerId: socket.id,
@@ -1300,24 +1321,24 @@ io.on('connection', (socket) => {
 
       // Check if all players have returned to lobby
       const allPlayersInLobby = lobby.players.every(p => !p.inGame);
-      
+
       if (allPlayersInLobby && lobby.gameInProgress) {
         // All players are back in lobby - reset game state for new game
         lobby.gameInProgress = false;
         lobby.tierState = null;
-        
+
         // Reset all player ready states (host stays ready)
         lobby.players.forEach(p => {
           p.status = 'waiting';
           p.isReady = p.id === lobby.hostId;
         });
-        
+
         // Notify all players that game has reset and they can ready up again
         io.to(roomId).emit('game_reset', {
           players: lobby.players,
           message: 'Game ended. Ready up to play again!'
         });
-        
+
         console.log(`Game reset in lobby ${lobby.name} - ready for new game`);
       }
     }
@@ -1372,12 +1393,26 @@ io.on('connection', (socket) => {
         const isHostLeaving = lobby.hostId === socket.id;
         const wasGameInProgress = lobby.gameInProgress;
 
-        lobby.players.splice(playerIndex, 1);
+        // If game is in progress, mark as disconnected instead of removing
+        if (wasGameInProgress && !isHostLeaving) {
+          disconnectedPlayer.disconnected = true;
+          disconnectedPlayer.inGame = false; // No longer actively playing
 
-        // Clean up session token
-        const lobbySessions = lobbySessionTokens.get(roomId);
-        if (lobbySessions) {
-          lobbySessions.delete(socket.id);
+          // Notify other players
+          io.to(roomId).emit('player_disconnected', {
+            playerId: socket.id,
+            playerName: disconnectedPlayer.name
+          });
+          console.log(`Player ${disconnectedPlayer.name} marked as disconnected in ${lobby.name}`);
+        } else {
+          // Not in game or host leaving - remove player completely
+          lobby.players.splice(playerIndex, 1);
+
+          // Clean up session token
+          const lobbySessions = lobbySessionTokens.get(roomId);
+          if (lobbySessions) {
+            lobbySessions.delete(socket.id);
+          }
         }
 
         // Clean up tier mode timer if active
@@ -1392,12 +1427,6 @@ io.on('connection', (socket) => {
           io.to(roomId).emit('lobby_closed', { reason: 'Host disconnected' });
           console.log(`Lobby ${lobby.name} deleted (host disconnected)`);
         } else if (wasGameInProgress) {
-          // Player left during gameplay - notify for reconnect timer
-          io.to(roomId).emit('player_left_game', {
-            playerId: socket.id,
-            playerName: disconnectedPlayer.name
-          });
-          console.log(`Player ${disconnectedPlayer.name} left during gameplay in ${lobby.name}`);
 
           // For tier mode: If only one player left, end the game
           if (lobby.mode === 'tier' && lobby.players.length < 2 && lobby.tierState) {

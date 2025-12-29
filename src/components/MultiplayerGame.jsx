@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import './MultiplayerGame.css';
 
-// Player theme colors
+// Player theme colors - synced with LobbyRoom.jsx
 const PLAYER_THEMES = {
-  green: { primary: '#22c55e', glow: 'rgba(34, 197, 94, 0.5)' },
+  retro: { primary: '#22c55e', glow: 'rgba(34, 197, 94, 0.5)' },
   blue: { primary: '#06b6d4', glow: 'rgba(6, 182, 212, 0.5)' },
+  sakura: { primary: '#ffafcc', glow: 'rgba(255, 175, 204, 0.5)' },
+  paper: { primary: '#2f4f4f', glow: 'rgba(47, 79, 79, 0.5)' },
   gold: { primary: '#eab308', glow: 'rgba(234, 179, 8, 0.5)' },
-  sunset: { primary: '#f97316', glow: 'rgba(249, 115, 22, 0.5)' },
-  retro: { primary: '#eab308', glow: 'rgba(234, 179, 8, 0.5)' }
+  obsidian: { primary: '#a855f7', glow: 'rgba(168, 85, 247, 0.5)' }
 };
 
 // Streak level colors - matching single-player ParagraphEngine
@@ -86,7 +87,7 @@ const MultiplayerGame = ({
   const [spectatorLoadingProgress, setSpectatorLoadingProgress] = useState(0); // 0-100 for loading bar
 
   // Final result countdown
-  const [finalResultCountdown, setFinalResultCountdown] = useState(5); // 5 second countdown at final result
+  const [finalResultCountdown, setFinalResultCountdown] = useState(10); // 10 second countdown at final result
 
   // Navigation hook
   const navigate = useNavigate();
@@ -131,26 +132,26 @@ const MultiplayerGame = ({
   const inputRef = useRef(null);
   const timerRef = useRef(null);
   const startTimeRef = useRef(null);
-  
+
   // Refs for socket handler access (to get current values in callbacks)
   const isEliminatedRef = useRef(isEliminated);
   const isSpectatingRef = useRef(isSpectating);
   const hasSelectedSpectateRef = useRef(hasSelectedSpectate);
   const spectatorLoadingRef = useRef(spectatorLoading);
-  
+
   // Keep refs in sync with state
   useEffect(() => {
     isEliminatedRef.current = isEliminated;
   }, [isEliminated]);
-  
+
   useEffect(() => {
     isSpectatingRef.current = isSpectating;
   }, [isSpectating]);
-  
+
   useEffect(() => {
     hasSelectedSpectateRef.current = hasSelectedSpectate;
   }, [hasSelectedSpectate]);
-  
+
   useEffect(() => {
     spectatorLoadingRef.current = spectatorLoading;
   }, [spectatorLoading]);
@@ -283,19 +284,19 @@ const MultiplayerGame = ({
         setRoundIndex(newRoundIndex);
         setCurrentTier(difficulty);
         setCurrentParagraph(paragraphText);
-        
+
         // Only reset game state for active (non-eliminated) players
         // Use refs to get current values (state might be stale in socket handler)
         const playerIsEliminated = isEliminatedRef.current;
         const playerIsSpectating = isSpectatingRef.current;
         const playerHasSelectedSpectate = hasSelectedSpectateRef.current;
         const playerSpectatorLoading = spectatorLoadingRef.current;
-        
+
         // Skip reset if player is eliminated/spectating or transitioning to spectate
         if (!playerIsEliminated && !playerIsSpectating && !playerHasSelectedSpectate && !playerSpectatorLoading) {
           resetForNewRound();
         }
-        
+
         // Only hide intermission for non-spectating players
         if (!playerIsSpectating && !playerSpectatorLoading) {
           setShowIntermission(false);
@@ -350,6 +351,7 @@ const MultiplayerGame = ({
 
         setRoundResults(leaderboard);
         setShowIntermission(false);
+        setIsSpectating(false); // Exit spectator mode to show final results
         setGamePhase('finished');
 
         // Determine if I won overall
@@ -551,9 +553,9 @@ const MultiplayerGame = ({
     } else if (isEliminated && showIntermission && eliminatedCountdown === 0) {
       // Check if user selected spectate or default to lobby
       if (hasSelectedSpectate) {
-        // User chose to spectate - show loading bar first
-        setSpectatorLoading(true);
-        setShowIntermission(false);
+        // User chose to spectate - KEEP intermission modal visible
+        // The useEffect watching gamePhase will close it when round starts
+        // Don't navigate to lobby, just wait for next round
       } else {
         // Default: Auto-navigate to lobby when countdown reaches 0
         handleBackToLobby();
@@ -567,30 +569,22 @@ const MultiplayerGame = ({
       const duration = 2000; // 2 seconds loading
       const interval = 50; // Update every 50ms
       const step = 100 / (duration / interval);
-      
+
       const timer = setInterval(() => {
         setSpectatorLoadingProgress(prev => {
-          const newProgress = prev + step;
-          if (newProgress >= 100) {
+          if (prev >= 100) {
             clearInterval(timer);
+            setIsSpectating(true);
+            setSpectatorLoading(false);
             return 100;
           }
-          return newProgress;
+          return prev + step;
         });
       }, interval);
-      
+
       return () => clearInterval(timer);
     }
   }, [spectatorLoading, isSpectating]);
-
-  // When spectator loading completes (progress reaches 100), activate spectating
-  useEffect(() => {
-    if (spectatorLoading && spectatorLoadingProgress >= 100) {
-      setIsSpectating(true);
-      setSpectatorLoading(false);
-      setSpectatorLoadingProgress(0); // Reset for next time
-    }
-  }, [spectatorLoading, spectatorLoadingProgress]);
 
   // Handler for back to lobby button - return to lobby without leaving the room
   const handleBackToLobby = useCallback(() => {
@@ -602,7 +596,7 @@ const MultiplayerGame = ({
     setSpectatorTargetId(null);
     setShowIntermission(false);
     setIsEliminated(false); // Reset eliminated state when going back to lobby
-    
+
     // Use onReturnToLobby to go back to lobby view without leaving room
     if (onReturnToLobby) {
       onReturnToLobby();
@@ -708,6 +702,15 @@ const MultiplayerGame = ({
     // Server will emit 'next_round' after 10s - no need to advance client-side
   }, [showIntermission, intermissionCountdown]);
 
+  // Force close intermission for SPECTATORS ONLY when countdown starts
+  // This ensures spectators see the 3-2-1 countdown before spectating becomes active
+  useEffect(() => {
+    if (hasSelectedSpectate && gamePhase === 'countdown' && showIntermission) {
+      setShowIntermission(false);
+      setIsSpectating(true); // Activate spectating when countdown starts
+    }
+  }, [hasSelectedSpectate, gamePhase, showIntermission]);
+
   // Final result countdown effect for tier mode - auto-return to lobby after 5 seconds
   useEffect(() => {
     if (mode === 'tier' && tierGameEnded && gamePhase === 'finished' && finalResultCountdown > 0) {
@@ -770,9 +773,10 @@ const MultiplayerGame = ({
     }
   }, [gamePhase]);
 
-  // Game timer
+  // Game timer - also runs for spectators to show live countdown
   useEffect(() => {
-    if (gamePhase === 'playing' && !isRoundComplete) {
+    // Run timer if playing OR if spectating (to mirror active game)
+    if ((gamePhase === 'playing' || isSpectating) && !isRoundComplete) {
       timerRef.current = setInterval(() => {
         setTimeRemaining(prev => {
           const difficulty = TIER_SCHEDULE[roundIndex];
@@ -813,7 +817,7 @@ const MultiplayerGame = ({
 
       return () => clearInterval(timerRef.current);
     }
-  }, [gamePhase, timeLimit, mode, socket, roomId, roundIndex, isEliminated, isRoundComplete]);
+  }, [gamePhase, timeLimit, mode, socket, roomId, roundIndex, isEliminated, isRoundComplete, isSpectating]);
 
   // Get streak/combo level based on streak count (matching single-player)
   const getComboLevel = useCallback(() => {
@@ -945,7 +949,7 @@ const MultiplayerGame = ({
         setTierRoundStats({ wpm, precision: accuracy, penaltyTimeUsed: penaltyUsed });
         setBestStreak(prev => Math.max(prev, streak));
         setIsRoundComplete(true);
-        
+
         // Stop the timer - round is complete for this player
         clearInterval(timerRef.current);
 
@@ -1030,7 +1034,7 @@ const MultiplayerGame = ({
   // Render spectator view text (showing watched player's progress)
   const renderSpectatorText = () => {
     const targetData = spectatorTargetId ? opponentProgress[spectatorTargetId] : null;
-    
+
     if (!spectatorTargetId) {
       return <span className="spectator-waiting">Select a player to watch...</span>;
     }
@@ -1038,13 +1042,13 @@ const MultiplayerGame = ({
     // Get the typed text from opponent progress
     // If we have progress but no typedText, estimate the position based on progress percentage
     let targetTypedText = targetData?.typedText || '';
-    
+
     // If no typedText but we have progress, calculate approximate position
     if (!targetTypedText && targetData?.progress > 0 && activeText) {
       const estimatedLength = Math.floor((targetData.progress / 100) * activeText.length);
       targetTypedText = activeText.substring(0, estimatedLength);
     }
-    
+
     if (!targetTypedText && (!targetData || targetData.progress === 0)) {
       return <span className="spectator-waiting">Waiting for player to start typing...</span>;
     }
@@ -1137,34 +1141,66 @@ const MultiplayerGame = ({
       <div className="game-dashboard-container">
         {/* Section 1: The HUD (Top) */}
         <div className="game-hud">
-          {/* Left: Player 1 Stats */}
+          {/* Left: Player Stats (Shows spectated player when spectating) */}
           <div className="hud-player-stats left">
-            <div className="hud-avatar">
-              {currentPlayer?.avatarUrl ? (
-                <img src={currentPlayer.avatarUrl} alt={currentPlayer.name} />
-              ) : (
-                <span>{currentPlayer?.name?.charAt(0).toUpperCase() || 'P'}</span>
-              )}
-            </div>
-            <div className="hud-stats">
-              <span className="hud-name">{currentPlayer?.name || 'Player 1'}</span>
-              <div className="hud-stat-row">
-                <span className="hud-stat">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  {calculateWPM()} WPM
-                </span>
-                <span className="hud-stat combo-indicator" style={{ color: getComboLevel().color }}>
-                  <span className="combo-label">{getComboLevel().label}</span>
-                </span>
-              </div>
-            </div>
+            {isSpectating ? (
+              <>
+                <div className="hud-avatar spectating">
+                  {players.find(p => p.id === spectatorTargetId)?.avatarUrl ? (
+                    <img src={players.find(p => p.id === spectatorTargetId).avatarUrl} alt="Spectating" />
+                  ) : (
+                    <span>{players.find(p => p.id === spectatorTargetId)?.name?.charAt(0).toUpperCase() || 'P'}</span>
+                  )}
+                </div>
+                <div className="hud-stats">
+                  <span className="hud-name">
+                    👁️ {players.find(p => p.id === spectatorTargetId)?.name || 'Player'}
+                  </span>
+                  <div className="hud-stat-row">
+                    <span className="hud-stat spectator-badge">SPECTATING</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="hud-avatar">
+                  {currentPlayer?.avatarUrl ? (
+                    <img src={currentPlayer.avatarUrl} alt={currentPlayer.name} />
+                  ) : (
+                    <span>{currentPlayer?.name?.charAt(0).toUpperCase() || 'P'}</span>
+                  )}
+                </div>
+                <div className="hud-stats">
+                  <span className="hud-name">{currentPlayer?.name || 'Player 1'}</span>
+                  <div className="hud-stat-row">
+                    <span className="hud-stat">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      {calculateWPM()} WPM
+                    </span>
+                    <span className="hud-stat combo-indicator" style={{ color: getComboLevel().color }}>
+                      <span className="combo-label">{getComboLevel().label}</span>
+                    </span>
+                    {/* Spectator Count - only show if spectators > 0 */}
+                    {spectators.length > 0 && !isEliminated && (
+                      <span className="hud-stat spectator-count">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        {spectators.length}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Center: Game Mode Badge + Live Timer */}
           <div className="hud-center">
-            <span 
+            <span
               className={`hud-mode-badge ${mode === 'tier' ? 'tier-mode' : ''}`}
               data-difficulty={mode === 'tier' ? TIER_SCHEDULE[roundIndex] : undefined}
             >
@@ -1186,7 +1222,14 @@ const MultiplayerGame = ({
         {/* Section 2: Main Game Area - Split Layout */}
         <div className="game-main-area">
           {/* Left: Paragraph Console */}
-          <div className="game-console" onClick={() => !isSpectating && inputRef.current?.focus()}>
+          <div
+            className="game-console"
+            onClick={() => !isSpectating && inputRef.current?.focus()}
+            style={isSpectating && spectatorTargetId ? {
+              borderColor: PLAYER_THEMES[players.find(p => p.id === spectatorTargetId)?.theme]?.primary || '#06b6d4',
+              boxShadow: `0 0 30px ${PLAYER_THEMES[players.find(p => p.id === spectatorTargetId)?.theme]?.glow || 'rgba(6, 182, 212, 0.3)'}`
+            } : {}}
+          >
             <div className="console-paragraph">
               {isSpectating ? renderSpectatorText() : renderText()}
             </div>
@@ -1225,7 +1268,7 @@ const MultiplayerGame = ({
             {/* Render all players sorted by progress */}
             {allPlayersData.map((player, index) => {
               const isMe = player.id === currentPlayer?.id;
-              const playerTheme = PLAYER_THEMES[player.theme] || PLAYER_THEMES[Object.keys(PLAYER_THEMES)[index]] || PLAYER_THEMES.green;
+              const playerTheme = PLAYER_THEMES[player.theme] || PLAYER_THEMES[Object.keys(PLAYER_THEMES)[index]] || PLAYER_THEMES.retro;
               const showError = isMe && hasCurrentErrors;
               const isFinished = player.completed || player.progress >= 100;
               const finishPosition = index + 1; // Position based on sorted order
@@ -1257,8 +1300,8 @@ const MultiplayerGame = ({
 
                   {/* Show progress bar OR position badge based on finish status */}
                   {isFinished ? (
-                    <motion.div 
-                      className="finish-position-badge position-display-font" 
+                    <motion.div
+                      className="finish-position-badge position-display-font"
                       style={{ '--player-color': playerTheme.primary }}
                       initial={{ opacity: 0, x: 30 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -1358,41 +1401,7 @@ const MultiplayerGame = ({
         )}
       </AnimatePresence>
 
-      {/* Spectator Loading Overlay - Shows when transitioning to spectator mode */}
-      <AnimatePresence>
-        {spectatorLoading && (
-          <motion.div
-            className="spectator-loading-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div
-              className="spectator-loading-content"
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-            >
-              <div className="spectator-loading-icon">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              </div>
-              <h3 className="spectator-loading-title">Entering Spectator Mode</h3>
-              <p className="spectator-loading-text">Connecting to live game...</p>
-              <div className="spectator-loading-bar-container">
-                <motion.div
-                  className="spectator-loading-bar-fill"
-                  initial={{ width: "0%" }}
-                  animate={{ width: `${spectatorLoadingProgress}%` }}
-                  transition={{ ease: "linear" }}
-                />
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Spectator Loading Overlay - REMOVED - Using intermission modal instead */}
 
       {/* Countdown Top Bar */}
       <AnimatePresence>
@@ -1429,7 +1438,7 @@ const MultiplayerGame = ({
 
       {/* Tier Mode Intermission Modal - Only show for non-spectating players */}
       <AnimatePresence>
-        {showIntermission && mode === 'tier' && !isSpectating && (
+        {showIntermission && mode === 'tier' && (
           <motion.div
             className="intermission-overlay"
             initial={{ opacity: 0 }}
@@ -1534,9 +1543,9 @@ const MultiplayerGame = ({
                   <div className="eliminated-section">
                     <div className="eliminated-notice-wide">
                       <svg className="eliminated-icon-svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10"/>
-                        <line x1="15" y1="9" x2="9" y2="15"/>
-                        <line x1="9" y1="9" x2="15" y2="15"/>
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="15" y1="9" x2="9" y2="15" />
+                        <line x1="9" y1="9" x2="15" y2="15" />
                       </svg>
                       <span className="text">YOU HAVE BEEN ELIMINATED</span>
                     </div>
@@ -1548,9 +1557,8 @@ const MultiplayerGame = ({
                           animate={{ width: "0%" }}
                           transition={{ duration: INTERMISSION_DURATION, ease: "linear" }}
                         />
-                        <span className="countdown-text">{eliminatedCountdown}s</span>
                       </div>
-                      <span className="eliminated-hint">Returning to lobby in {eliminatedCountdown}s...</span>
+                      {/* Countdown removed - only show on final results */}
                     </div>
                   </div>
                 )}
@@ -1560,8 +1568,8 @@ const MultiplayerGame = ({
                     <>
                       {/* Spectate only available for 3+ player lobbies */}
                       {players.length > 2 && (
-                        <button 
-                          className={`spectate-btn ${hasSelectedSpectate ? 'selected' : ''}`} 
+                        <button
+                          className={`spectate-btn ${hasSelectedSpectate ? 'selected' : ''}`}
                           onClick={() => {
                             // Get first active (non-eliminated) player as default target
                             const activePlayersList = players.filter(p => !eliminatedPlayers.includes(p.id) && p.id !== currentPlayer?.id);
@@ -1569,22 +1577,23 @@ const MultiplayerGame = ({
                               setSpectatorTargetId(activePlayersList[0].id);
                             }
                             setHasSelectedSpectate(true);
-                            // Don't dismiss modal yet - wait for countdown to finish
+                            // Don't set isSpectating yet - wait for countdown to start
+                            // Don't force close intermission - let it close naturally when round starts
                           }}
                           disabled={hasSelectedSpectate}
                         >
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                            <circle cx="12" cy="12" r="3" />
                           </svg>
                           {hasSelectedSpectate ? 'Spectating...' : 'Spectate'}
                         </button>
                       )}
                       <button className="lobby-btn" onClick={handleBackToLobby} disabled={hasSelectedSpectate}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                          <polyline points="16 17 21 12 16 7"/>
-                          <line x1="21" y1="12" x2="9" y2="12"/>
+                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                          <polyline points="16 17 21 12 16 7" />
+                          <line x1="21" y1="12" x2="9" y2="12" />
                         </svg>
                         Back to Lobby
                       </button>
@@ -1605,349 +1614,349 @@ const MultiplayerGame = ({
             - For active players: when gamePhase === 'finished'
             - For spectators/eliminated: only when tierGameEnded (actual game end, not premature)
         */}
-        {((!isEliminated && !isSpectating && gamePhase === 'finished') || 
+        {((!isEliminated && !isSpectating && gamePhase === 'finished') ||
           ((isSpectating || isEliminated) && tierGameEnded)) && (() => {
-          // For tier mode with detailed results
-          const isTierDetailed = mode === 'tier' && tierGameEnded && tierFinalStats;
+            // For tier mode with detailed results
+            const isTierDetailed = mode === 'tier' && tierGameEnded && tierFinalStats;
 
-          // Build leaderboard - for tier mode use roundResults from server, otherwise build from players
-          let leaderboard;
+            // Build leaderboard - for tier mode use roundResults from server, otherwise build from players
+            let leaderboard;
 
-          if (isTierDetailed && roundResults.length > 0) {
-            // Use the server-provided detailed leaderboard for tier mode
-            leaderboard = roundResults.map((entry, idx) => ({
-              id: entry.playerId,
-              name: entry.playerName || 'Player',
-              avatarUrl: entry.avatarUrl,
-              theme: entry.theme,
-              isMe: entry.playerId === currentPlayer?.id,
-              wpm: entry.avgWpm || 0,
-              accuracy: entry.avgAccuracy || 0,
-              completedRounds: entry.completedRounds || 0,
-              chances: entry.chances ?? 0,
-              isEliminated: entry.isEliminated || false,
-              bestWpm: entry.bestWpm || 0,
-              position: idx + 1,
-              progress: 100 // Tier mode doesn't use progress bars
-            }));
-          } else {
-            // Build from players for non-tier or fallback - include all players (even eliminated)
-            leaderboard = players.map(p => {
-              const isMe = p.id === currentPlayer?.id;
-              const pData = isMe ? null : opponentProgress[p.id];
-              const playerIsEliminated = eliminatedPlayers.includes(p.id);
+            if (isTierDetailed && roundResults.length > 0) {
+              // Use the server-provided detailed leaderboard for tier mode
+              leaderboard = roundResults.map((entry, idx) => ({
+                id: entry.playerId,
+                name: entry.playerName || 'Player',
+                avatarUrl: entry.avatarUrl,
+                theme: entry.theme,
+                isMe: entry.playerId === currentPlayer?.id,
+                wpm: entry.avgWpm || 0,
+                accuracy: entry.avgAccuracy || 0,
+                completedRounds: entry.completedRounds || 0,
+                chances: entry.chances ?? 0,
+                isEliminated: entry.isEliminated || false,
+                bestWpm: entry.bestWpm || 0,
+                position: idx + 1,
+                progress: 100 // Tier mode doesn't use progress bars
+              }));
+            } else {
+              // Build from players for non-tier or fallback - include all players (even eliminated)
+              leaderboard = players.map(p => {
+                const isMe = p.id === currentPlayer?.id;
+                const pData = isMe ? null : opponentProgress[p.id];
+                const playerIsEliminated = eliminatedPlayers.includes(p.id);
 
-              return {
-                id: p.id,
-                name: isMe ? (p.name || 'You') : (p.name || 'Player'),
-                avatarUrl: p.avatarUrl,
-                theme: p.theme,
-                isMe,
-                isEliminated: playerIsEliminated,
-                wpm: isMe
-                  ? (isTierDetailed ? tierFinalStats.myStats?.avgWpm : calculateWPM())
-                  : (pData?.wpm || 0),
-                accuracy: isMe
-                  ? (isTierDetailed ? tierFinalStats.myStats?.avgAccuracy : calculateAccuracy())
-                  : (pData?.accuracy ?? 0),
-                progress: isMe ? calculateProgress() : (pData?.progress || 0),
-                completed: isMe ? (calculateProgress() >= 100) : (pData?.completed || false),
-                completionTime: isMe ? completionTime : pData?.completionTime,
-                roundsWon: isMe
-                  ? (isTierDetailed ? tierFinalStats.myStats?.roundsWon : roundsWon)
-                  : (pData?.roundsWon || 0),
-                completedRounds: isMe ? cumulativeStats.roundsPlayed : (pData?.completedRounds || 0),
-                bestWpm: isMe ? bestStreak : (pData?.bestWpm || pData?.wpm || 0)
-              };
-            }).sort((a, b) => {
-              // Sort eliminated players to the bottom
-              if (a.isEliminated && !b.isEliminated) return 1;
-              if (!a.isEliminated && b.isEliminated) return -1;
-              // Sort by: completion first, then progress, then WPM
-              if (a.completed && !b.completed) return -1;
-              if (!a.completed && b.completed) return 1;
-              if (a.completed && b.completed) {
-                // Both completed - sort by time or WPM
-                if (a.completionTime && b.completionTime) {
-                  return a.completionTime - b.completionTime;
+                return {
+                  id: p.id,
+                  name: isMe ? (p.name || 'You') : (p.name || 'Player'),
+                  avatarUrl: p.avatarUrl,
+                  theme: p.theme,
+                  isMe,
+                  isEliminated: playerIsEliminated,
+                  wpm: isMe
+                    ? (isTierDetailed ? tierFinalStats.myStats?.avgWpm : calculateWPM())
+                    : (pData?.wpm || 0),
+                  accuracy: isMe
+                    ? (isTierDetailed ? tierFinalStats.myStats?.avgAccuracy : calculateAccuracy())
+                    : (pData?.accuracy ?? 0),
+                  progress: isMe ? calculateProgress() : (pData?.progress || 0),
+                  completed: isMe ? (calculateProgress() >= 100) : (pData?.completed || false),
+                  completionTime: isMe ? completionTime : pData?.completionTime,
+                  roundsWon: isMe
+                    ? (isTierDetailed ? tierFinalStats.myStats?.roundsWon : roundsWon)
+                    : (pData?.roundsWon || 0),
+                  completedRounds: isMe ? cumulativeStats.roundsPlayed : (pData?.completedRounds || 0),
+                  bestWpm: isMe ? bestStreak : (pData?.bestWpm || pData?.wpm || 0)
+                };
+              }).sort((a, b) => {
+                // Sort eliminated players to the bottom
+                if (a.isEliminated && !b.isEliminated) return 1;
+                if (!a.isEliminated && b.isEliminated) return -1;
+                // Sort by: completion first, then progress, then WPM
+                if (a.completed && !b.completed) return -1;
+                if (!a.completed && b.completed) return 1;
+                if (a.completed && b.completed) {
+                  // Both completed - sort by time or WPM
+                  if (a.completionTime && b.completionTime) {
+                    return a.completionTime - b.completionTime;
+                  }
+                  return b.wpm - a.wpm;
                 }
+                // Neither completed - sort by progress
+                if (a.progress !== b.progress) return b.progress - a.progress;
                 return b.wpm - a.wpm;
-              }
-              // Neither completed - sort by progress
-              if (a.progress !== b.progress) return b.progress - a.progress;
-              return b.wpm - a.wpm;
-            });
+              });
 
-            // Assign positions
-            leaderboard.forEach((p, idx) => {
-              p.position = idx + 1;
-            });
-          }
-
-          // Find my position
-          const myPosition = leaderboard.find(p => p.isMe)?.position || 1;
-          const myStats = leaderboard.find(p => p.isMe);
-
-          // Total players count (for voting)
-          const totalPlayers = players?.length || 2;
-          const votesNeeded = totalPlayers;
-          const currentVotes = goAgainVotes.length;
-
-          // Position labels and colors
-          const positionLabels = ['1st', '2nd', '3rd', '4th'];
-          const positionColors = ['#ffd700', '#c0c0c0', '#cd7f32', '#64748b']; // gold, silver, bronze, gray
-
-          // Handle Go Again vote
-          const handleVoteGoAgain = () => {
-            if (!hasVotedGoAgain && socket && roomId) {
-              setHasVotedGoAgain(true);
-              socket.emit('vote_go_again', { roomId, playerId: currentPlayer?.id });
+              // Assign positions
+              leaderboard.forEach((p, idx) => {
+                p.position = idx + 1;
+              });
             }
-          };
 
-          return (
-            <motion.div
-              className="gameover-overlay"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
+            // Find my position
+            const myPosition = leaderboard.find(p => p.isMe)?.position || 1;
+            const myStats = leaderboard.find(p => p.isMe);
+
+            // Total players count (for voting)
+            const totalPlayers = players?.length || 2;
+            const votesNeeded = totalPlayers;
+            const currentVotes = goAgainVotes.length;
+
+            // Position labels and colors
+            const positionLabels = ['1st', '2nd', '3rd', '4th'];
+            const positionColors = ['#ffd700', '#c0c0c0', '#cd7f32', '#64748b']; // gold, silver, bronze, gray
+
+            // Handle Go Again vote
+            const handleVoteGoAgain = () => {
+              if (!hasVotedGoAgain && socket && roomId) {
+                setHasVotedGoAgain(true);
+                socket.emit('vote_go_again', { roomId, playerId: currentPlayer?.id });
+              }
+            };
+
+            return (
               <motion.div
-                className="gameover-content-leaderboard"
-                initial={{ scale: 0.8, y: 20 }}
-                animate={{ scale: 1, y: 0 }}
-                transition={{ type: 'spring' }}
+                className="gameover-overlay"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
               >
-                {/* Result Banner - Your Position */}
-                <div className={`result-banner ${tierFinalStats?.isDraw ? 'draw' : `position-${myPosition}`}`}>
-                  <div className="banner-header">
-                    <span className="position-badge" style={{ '--pos-color': tierFinalStats?.isDraw ? '#64748b' : positionColors[myPosition - 1] }}>
-                      {tierFinalStats?.isDraw ? 'DRAW' : (positionLabels[myPosition - 1] || `${myPosition}th`)}
+                <motion.div
+                  className="gameover-content-leaderboard"
+                  initial={{ scale: 0.8, y: 20 }}
+                  animate={{ scale: 1, y: 0 }}
+                  transition={{ type: 'spring' }}
+                >
+                  {/* Result Banner - Your Position */}
+                  <div className={`result-banner ${tierFinalStats?.isDraw ? 'draw' : `position-${myPosition}`}`}>
+                    <div className="banner-header">
+                      <span className="position-badge" style={{ '--pos-color': tierFinalStats?.isDraw ? '#64748b' : positionColors[myPosition - 1] }}>
+                        {tierFinalStats?.isDraw ? 'DRAW' : (positionLabels[myPosition - 1] || `${myPosition}th`)}
+                      </span>
+                    </div>
+                    <span className="result-text">
+                      {tierFinalStats?.isDraw ? 'NO WINNER!' : (myPosition === 1 ? 'VICTORY!' : myPosition === 2 ? 'CLOSE ONE!' : myPosition === 3 ? 'GOOD TRY!' : 'KEEP PRACTICING!')}
                     </span>
+                    <div className="my-stats-row">
+                      <span className="my-stat">{myStats?.wpm || 0} WPM</span>
+                      <span className="my-stat-divider">•</span>
+                      <span className="my-stat">{myStats?.accuracy || 0}% Acc</span>
+                      {isTierDetailed && (
+                        <>
+                          <span className="my-stat-divider">•</span>
+                          <span className="my-stat">{myStats?.roundsWon || 0} Rounds</span>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <span className="result-text">
-                    {tierFinalStats?.isDraw ? 'NO WINNER!' : (myPosition === 1 ? 'VICTORY!' : myPosition === 2 ? 'CLOSE ONE!' : myPosition === 3 ? 'GOOD TRY!' : 'KEEP PRACTICING!')}
-                  </span>
-                  <div className="my-stats-row">
-                    <span className="my-stat">{myStats?.wpm || 0} WPM</span>
-                    <span className="my-stat-divider">•</span>
-                    <span className="my-stat">{myStats?.accuracy || 0}% Acc</span>
-                    {isTierDetailed && (
-                      <>
-                        <span className="my-stat-divider">•</span>
-                        <span className="my-stat">{myStats?.roundsWon || 0} Rounds</span>
-                      </>
-                    )}
-                  </div>
-                </div>
 
-                {/* Tier Mode: Detailed Report with Eliminated Players */}
-                {isTierDetailed ? (
-                  <div className="tier-final-report">
-                    {/* Player Cards - One per line */}
-                    <div className="tier-report-list">
+                  {/* Tier Mode: Detailed Report with Eliminated Players */}
+                  {isTierDetailed ? (
+                    <div className="tier-final-report">
+                      {/* Player Cards - One per line */}
+                      <div className="tier-report-list">
+                        {leaderboard.map((player, idx) => {
+                          const playerTheme = PLAYER_THEMES[player.theme] || PLAYER_THEMES[Object.keys(PLAYER_THEMES)[idx]] || PLAYER_THEMES.retro;
+                          // No winner in draw scenario
+                          const isWinner = !tierFinalStats?.isDraw && idx === 0 && !player.isEliminated;
+                          return (
+                            <motion.div
+                              key={player.id}
+                              className={`tier-report-row ${player.isMe ? 'you' : ''} ${isWinner ? 'winner' : ''} ${player.isEliminated ? 'eliminated' : ''}`}
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: idx * 0.1 }}
+                            >
+                              {/* Position */}
+                              <div className="tier-row-position" style={{ '--pos-color': player.isEliminated ? '#ef4444' : positionColors[idx] || '#64748b' }}>
+                                {isWinner && <span className="crown-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-1h14v1z" /></svg></span>}
+                                <span className="pos-num">{player.isEliminated ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z" /></svg> : positionLabels[idx] || `${idx + 1}th`}</span>
+                              </div>
+
+                              {/* Player Info */}
+                              <div className="tier-row-player">
+                                <span className="tier-row-avatar" style={{ '--avatar-color': playerTheme?.primary || 'var(--primary)' }}>
+                                  {player.avatarUrl ? (
+                                    <img src={player.avatarUrl} alt={player.name} />
+                                  ) : (
+                                    player.name?.charAt(0).toUpperCase() || 'P'
+                                  )}
+                                </span>
+                                <span className="tier-row-name">
+                                  {player.isMe ? 'You' : player.name}
+                                  {player.isMe && <span className="you-tag"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg></span>}
+                                </span>
+                              </div>
+
+                              {/* Stats */}
+                              <div className="tier-row-stats">
+                                <span className="tier-row-stat primary">
+                                  <span className="stat-value">{player.wpm || 0}</span>
+                                  <span className="stat-label">WPM</span>
+                                </span>
+                                <span className="tier-row-stat">
+                                  <span className="stat-value">{player.completedRounds || 0}/{TOTAL_TIER_ROUNDS}</span>
+                                  <span className="stat-label">Rounds</span>
+                                </span>
+                                <span className="tier-row-stat">
+                                  <span className="stat-value">{player.bestWpm || player.wpm || 0}</span>
+                                  <span className="stat-label">Best</span>
+                                </span>
+                              </div>
+
+                              {/* Status Badge */}
+                              <div className={`tier-row-status ${player.isEliminated ? 'eliminated' : tierFinalStats?.isDraw ? 'draw' : isWinner ? 'winner' : 'survived'}`}>
+                                {player.isEliminated ? (
+                                  <>ELIMINATED</>
+                                ) : tierFinalStats?.isDraw ? (
+                                  <>DRAW</>
+                                ) : isWinner ? (
+                                  <><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2z" /></svg> CHAMPION</>
+                                ) : (
+                                  <><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg> FINISHED</>
+                                )}
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Standard Leaderboard Table for non-tier modes */
+                    <div className="leaderboard-table">
+                      <div className="leaderboard-header">
+                        <span className="lb-col rank">Rank</span>
+                        <span className="lb-col player">Player</span>
+                        <span className="lb-col wpm">WPM</span>
+                        <span className="lb-col acc">Acc</span>
+                        <span className="lb-col progress">Progress</span>
+                      </div>
                       {leaderboard.map((player, idx) => {
-                        const playerTheme = PLAYER_THEMES[player.theme] || PLAYER_THEMES[Object.keys(PLAYER_THEMES)[idx]] || PLAYER_THEMES.green;
-                        // No winner in draw scenario
-                        const isWinner = !tierFinalStats?.isDraw && idx === 0 && !player.isEliminated;
+                        const playerTheme = PLAYER_THEMES[player.theme] || PLAYER_THEMES[Object.keys(PLAYER_THEMES)[idx]] || PLAYER_THEMES.retro;
                         return (
                           <motion.div
                             key={player.id}
-                            className={`tier-report-row ${player.isMe ? 'you' : ''} ${isWinner ? 'winner' : ''} ${player.isEliminated ? 'eliminated' : ''}`}
+                            className={`leaderboard-row ${player.isMe ? 'you' : ''} ${idx === 0 ? 'winner' : ''}`}
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: idx * 0.1 }}
                           >
-                            {/* Position */}
-                            <div className="tier-row-position" style={{ '--pos-color': player.isEliminated ? '#ef4444' : positionColors[idx] || '#64748b' }}>
-                              {isWinner && <span className="crown-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-1h14v1z"/></svg></span>}
-                              <span className="pos-num">{player.isEliminated ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg> : positionLabels[idx] || `${idx + 1}th`}</span>
-                            </div>
-
-                            {/* Player Info */}
-                            <div className="tier-row-player">
-                              <span className="tier-row-avatar" style={{ '--avatar-color': playerTheme?.primary || 'var(--primary)' }}>
+                            <span className="lb-col rank">
+                              <span className="position-num position-display-font" style={{ '--pos-color': positionColors[idx] || '#64748b' }}>
+                                {idx === 0 && (
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                                  </svg>
+                                )}
+                                {positionLabels[idx] || `${idx + 1}th`}
+                              </span>
+                            </span>
+                            <span className="lb-col player">
+                              <span className="lb-avatar" style={{ '--avatar-color': playerTheme.primary }}>
                                 {player.avatarUrl ? (
                                   <img src={player.avatarUrl} alt={player.name} />
                                 ) : (
                                   player.name?.charAt(0).toUpperCase() || 'P'
                                 )}
                               </span>
-                              <span className="tier-row-name">
-                                {player.isMe ? 'You' : player.name}
-                                {player.isMe && <span className="you-tag"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></span>}
-                              </span>
-                            </div>
-
-                            {/* Stats */}
-                            <div className="tier-row-stats">
-                              <span className="tier-row-stat primary">
-                                <span className="stat-value">{player.wpm || 0}</span>
-                                <span className="stat-label">WPM</span>
-                              </span>
-                              <span className="tier-row-stat">
-                                <span className="stat-value">{player.completedRounds || 0}/{TOTAL_TIER_ROUNDS}</span>
-                                <span className="stat-label">Rounds</span>
-                              </span>
-                              <span className="tier-row-stat">
-                                <span className="stat-value">{player.bestWpm || player.wpm || 0}</span>
-                                <span className="stat-label">Best</span>
-                              </span>
-                            </div>
-
-                            {/* Status Badge */}
-                            <div className={`tier-row-status ${player.isEliminated ? 'eliminated' : tierFinalStats?.isDraw ? 'draw' : isWinner ? 'winner' : 'survived'}`}>
-                              {player.isEliminated ? (
-                                <>ELIMINATED</>
-                              ) : tierFinalStats?.isDraw ? (
-                                <>DRAW</>
-                              ) : isWinner ? (
-                                <><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2z"/></svg> CHAMPION</>
-                              ) : (
-                                <><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> FINISHED</>
-                              )}
-                            </div>
+                              <span className="lb-name">{player.isMe ? 'You' : player.name}</span>
+                              {player.isMe && <span className="you-tag">YOU</span>}
+                            </span>
+                            <span className="lb-col wpm">{player.wpm}</span>
+                            <span className="lb-col acc">{typeof player.accuracy === 'number' ? `${player.accuracy}%` : '--'}</span>
+                            <span className="lb-col progress">
+                              <div className="lb-progress-bar">
+                                <div
+                                  className="lb-progress-fill"
+                                  style={{ width: `${player.progress}%`, background: playerTheme.primary }}
+                                />
+                              </div>
+                              <span className="lb-progress-text">{Math.round(player.progress)}%</span>
+                            </span>
                           </motion.div>
                         );
                       })}
                     </div>
-                  </div>
-                ) : (
-                  /* Standard Leaderboard Table for non-tier modes */
-                  <div className="leaderboard-table">
-                    <div className="leaderboard-header">
-                      <span className="lb-col rank">Rank</span>
-                      <span className="lb-col player">Player</span>
-                      <span className="lb-col wpm">WPM</span>
-                      <span className="lb-col acc">Acc</span>
-                      <span className="lb-col progress">Progress</span>
-                    </div>
-                    {leaderboard.map((player, idx) => {
-                      const playerTheme = PLAYER_THEMES[player.theme] || PLAYER_THEMES[Object.keys(PLAYER_THEMES)[idx]] || PLAYER_THEMES.green;
-                      return (
-                        <motion.div
-                          key={player.id}
-                          className={`leaderboard-row ${player.isMe ? 'you' : ''} ${idx === 0 ? 'winner' : ''}`}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: idx * 0.1 }}
-                        >
-                          <span className="lb-col rank">
-                            <span className="position-num position-display-font" style={{ '--pos-color': positionColors[idx] || '#64748b' }}>
-                              {idx === 0 && (
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                                </svg>
-                              )}
-                              {positionLabels[idx] || `${idx + 1}th`}
-                            </span>
-                          </span>
-                          <span className="lb-col player">
-                            <span className="lb-avatar" style={{ '--avatar-color': playerTheme.primary }}>
-                              {player.avatarUrl ? (
-                                <img src={player.avatarUrl} alt={player.name} />
-                              ) : (
-                                player.name?.charAt(0).toUpperCase() || 'P'
-                              )}
-                            </span>
-                            <span className="lb-name">{player.isMe ? 'You' : player.name}</span>
-                            {player.isMe && <span className="you-tag">YOU</span>}
-                          </span>
-                          <span className="lb-col wpm">{player.wpm}</span>
-                          <span className="lb-col acc">{typeof player.accuracy === 'number' ? `${player.accuracy}%` : '--'}</span>
-                          <span className="lb-col progress">
-                            <div className="lb-progress-bar">
-                              <div
-                                className="lb-progress-fill"
-                                style={{ width: `${player.progress}%`, background: playerTheme.primary }}
-                              />
-                            </div>
-                            <span className="lb-progress-text">{Math.round(player.progress)}%</span>
-                          </span>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                )}
+                  )}
 
-                {/* Mode Info */}
-                {isTierDetailed && (
-                  <div className="tier-summary">
-                    <span className="tier-label">
-                      Tier Mode • {tierFinalStats.myStats?.completedRounds || cumulativeStats.roundsPlayed}/{TOTAL_TIER_ROUNDS} Rounds
-                    </span>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="gameover-buttons">
-                  {mode === 'random' && (
-                    <div className="go-again-container">
-                      <button
-                        className={`gameover-btn primary ${hasVotedGoAgain ? 'voted' : ''}`}
-                        onClick={handleVoteGoAgain}
-                        disabled={hasVotedGoAgain}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M1 4v6h6M23 20v-6h-6" />
-                          <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
-                        </svg>
-                        {hasVotedGoAgain ? 'Voted!' : 'Go Again'}
-                      </button>
-                      <span className="vote-indicator">
-                        {currentVotes}/{votesNeeded} ready
+                  {/* Mode Info */}
+                  {isTierDetailed && (
+                    <div className="tier-summary">
+                      <span className="tier-label">
+                        Tier Mode • {tierFinalStats.myStats?.completedRounds || cumulativeStats.roundsPlayed}/{TOTAL_TIER_ROUNDS} Rounds
                       </span>
                     </div>
                   )}
-                  
-                  {/* Tier Mode: Countdown bar to auto-return to lobby */}
-                  {mode === 'tier' && isTierDetailed && (
-                    <div className="final-result-countdown">
-                      <div className="final-countdown-info">
-                        <span className="final-countdown-text">Returning to lobby in {finalResultCountdown}s...</span>
-                      </div>
-                      <div className="final-countdown-bar-container">
-                        <motion.div
-                          className="final-countdown-bar-fill"
-                          initial={{ width: "100%" }}
-                          animate={{ width: "0%" }}
-                          transition={{ duration: 5, ease: "linear" }}
-                        />
-                      </div>
-                      <div className="final-countdown-buttons">
-                        <button className="gameover-btn primary" onClick={handleBackToLobby}>
+
+                  {/* Action Buttons */}
+                  <div className="gameover-buttons">
+                    {mode === 'random' && (
+                      <div className="go-again-container">
+                        <button
+                          className={`gameover-btn primary ${hasVotedGoAgain ? 'voted' : ''}`}
+                          onClick={handleVoteGoAgain}
+                          disabled={hasVotedGoAgain}
+                        >
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                            <polyline points="16 17 21 12 16 7" />
-                            <line x1="21" y1="12" x2="9" y2="12" />
+                            <path d="M1 4v6h6M23 20v-6h-6" />
+                            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
                           </svg>
-                          Back to Lobby
+                          {hasVotedGoAgain ? 'Voted!' : 'Go Again'}
                         </button>
-                        <button className="gameover-btn secondary" onClick={onLeave}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M18 6L6 18M6 6l12 12" />
-                          </svg>
-                          Leave Game
-                        </button>
+                        <span className="vote-indicator">
+                          {currentVotes}/{votesNeeded} ready
+                        </span>
                       </div>
-                    </div>
-                  )}
-                  
-                  {/* Random mode or non-tier: just show Back to Lobby */}
-                  {mode !== 'tier' && (
-                    <button className="gameover-btn secondary" onClick={onLeave}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                        <polyline points="16 17 21 12 16 7" />
-                        <line x1="21" y1="12" x2="9" y2="12" />
-                      </svg>
-                      Back to Lobby
-                    </button>
-                  )}
-                </div>
+                    )}
+
+                    {/* Tier Mode: Countdown bar to auto-return to lobby */}
+                    {mode === 'tier' && isTierDetailed && (
+                      <div className="final-result-countdown">
+                        <div className="final-countdown-info">
+                          <span className="final-countdown-text">Returning to lobby in {finalResultCountdown}s...</span>
+                        </div>
+                        <div className="final-countdown-bar-container">
+                          <motion.div
+                            className="final-countdown-bar-fill"
+                            initial={{ width: "100%" }}
+                            animate={{ width: "0%" }}
+                            transition={{ duration: 5, ease: "linear" }}
+                          />
+                        </div>
+                        <div className="final-countdown-buttons">
+                          <button className="gameover-btn primary" onClick={handleBackToLobby}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                              <polyline points="16 17 21 12 16 7" />
+                              <line x1="21" y1="12" x2="9" y2="12" />
+                            </svg>
+                            Back to Lobby
+                          </button>
+                          <button className="gameover-btn secondary" onClick={onLeave}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M18 6L6 18M6 6l12 12" />
+                            </svg>
+                            Leave Game
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Random mode or non-tier: just show Back to Lobby */}
+                    {mode !== 'tier' && (
+                      <button className="gameover-btn secondary" onClick={onLeave}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                          <polyline points="16 17 21 12 16 7" />
+                          <line x1="21" y1="12" x2="9" y2="12" />
+                        </svg>
+                        Back to Lobby
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
               </motion.div>
-            </motion.div>
-          );
-        })()}
+            );
+          })()}
       </AnimatePresence>
 
       {/* Player Disconnected Overlay */}
