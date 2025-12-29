@@ -1040,17 +1040,17 @@ const MultiplayerGame = ({
     }
 
     // Get the typed text from opponent progress
-    // If we have progress but no typedText, estimate the position based on progress percentage
     let targetTypedText = targetData?.typedText || '';
 
-    // If no typedText but we have progress, calculate approximate position
+    // If no typedText but we have progress, estimate position based on progress percentage
     if (!targetTypedText && targetData?.progress > 0 && activeText) {
       const estimatedLength = Math.floor((targetData.progress / 100) * activeText.length);
       targetTypedText = activeText.substring(0, estimatedLength);
     }
 
+    // Show waiting message only if no progress at all
     if (!targetTypedText && (!targetData || targetData.progress === 0)) {
-      return <span className="spectator-waiting">Waiting for player to start typing...</span>;
+      return <span className="spectator-waiting">Waiting for {players.find(p => p.id === spectatorTargetId)?.name} to start typing...</span>;
     }
 
     let charIndex = 0;
@@ -1073,7 +1073,7 @@ const MultiplayerGame = ({
           if (targetData?.typedText) {
             className += targetTypedText[globalIndex] === char ? ' correct' : ' incorrect';
           } else {
-            // Estimated progress - show as correct (we don't know actual errors)
+            // Estimated progress - show as correct
             className += ' correct estimated';
           }
         }
@@ -1138,8 +1138,11 @@ const MultiplayerGame = ({
   return (
     <div className="multiplayer-game-dashboard">
       {/* Main Dashboard Container */}
-      <div className="game-dashboard-container">
+      {/* Show for active players and spectators */}
+      {(!isEliminated || isSpectating) && (
+        <div className="game-dashboard-container">
         {/* Section 1: The HUD (Top) */}
+        {/* Always show HUD - for active players and spectators */}
         <div className="game-hud">
           {/* Left: Player Stats (Shows spectated player when spectating) */}
           <div className="hud-player-stats left">
@@ -1219,8 +1222,10 @@ const MultiplayerGame = ({
           </div>
         </div>
 
-        {/* Section 2: Main Game Area - Split Layout */}
-        <div className="game-main-area">
+          {/* Section 2: Main Game Area - Split Layout */}
+          {/* Show main game area for active players, or show spectator view for spectators */}
+          {(!isSpectating && !spectatorLoading) ? (
+            <div className="game-main-area">
           {/* Left: Paragraph Console */}
           <div
             className="game-console"
@@ -1340,31 +1345,111 @@ const MultiplayerGame = ({
             })}
           </div>
         </div>
-      </div>
+      ) : isSpectating && !spectatorLoading ? (
+        // Spectator view during playing
+        <div className="game-main-area">
+          {/* Left: Paragraph Console - Spectating Mode */}
+          <div className="game-console" style={{ opacity: 0.9 }}>
+            <div className="console-paragraph">
+              {renderSpectatorText()}
+            </div>
+          </div>
 
-      {/* Spectator Mode: Player Selector (Bottom Fixed Bar) */}
+          {/* Right: Progress Trackers Sidebar - All Players */}
+          <div className="game-progress-sidebar">
+            <div className="progress-sidebar-header">
+              <span>Racers</span>
+              <span className="player-count">{allPlayersData.length}/{players.length}</span>
+            </div>
+
+            {/* Render all players sorted by progress */}
+            {allPlayersData.map((player, index) => {
+              const playerTheme = PLAYER_THEMES[player.theme] || PLAYER_THEMES[Object.keys(PLAYER_THEMES)[index]] || PLAYER_THEMES.retro;
+              const isFinished = player.completed || player.progress >= 100;
+
+              return (
+                <div key={player.id} className={`progress-card opponent ${isFinished ? 'finished' : ''}`}>
+                  <div className="progress-card-header">
+                    <span className="progress-rank">#{index + 1}</span>
+                    <span className="progress-avatar" style={{ '--avatar-color': playerTheme.primary }}>
+                      {player.avatarUrl ? (
+                        <img src={player.avatarUrl} alt={player.name} />
+                      ) : (
+                        player.name?.charAt(0).toUpperCase() || 'P'
+                      )}
+                    </span>
+                    <span className="progress-name">{player.name}</span>
+                  </div>
+                  <div className="progress-card-stats">
+                    <span className="progress-percent-large">{Math.round(player.progress)}%</span>
+                    <span className="progress-wpm">{player.wpm} WPM</span>
+                  </div>
+                  {isFinished ? (
+                    <motion.div
+                      className="finish-position-badge position-display-font"
+                      style={{ '--player-color': playerTheme.primary }}
+                      initial={{ opacity: 0, x: 30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                    >
+                      <span className="position-number">{index + 1}{'st'}</span>
+                      <span className="finished-label">FINISHED</span>
+                    </motion.div>
+                  ) : (
+                    <div className="progress-bar-track">
+                      <motion.div
+                        className="progress-bar-fill"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${player.progress}%` }}
+                        transition={{ duration: 0.2 }}
+                        style={{ '--player-color': playerTheme.primary }}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Spectator Mode: Player Selector (Bottom Fixed Bar) - ALWAYS visible when spectating */}
       {isSpectating && (
         <div className="spectator-bottom-bar">
           <div className="spectator-bar-content">
             <div className="spectator-bar-label">
               <span className="spectator-icon">👁️</span>
-              <span>Switch Player:</span>
+              <span>Watching:</span>
+              {spectatorTargetId && (() => {
+                const targetPlayer = players.find(p => p.id === spectatorTargetId);
+                const targetData = opponentProgress[spectatorTargetId];
+                return (
+                  <div className="spectator-target-info">
+                    <span className="target-name">{targetPlayer?.name}</span>
+                    <span className="target-stats">{targetData?.wpm || 0} WPM • {targetData?.progress || 0}%</span>
+                  </div>
+                );
+              })()}
             </div>
             <div className="spectator-player-buttons">
-              {players.filter(p => !eliminatedPlayers.includes(p.id) && p.id !== currentPlayer?.id).map(p => (
-                <button
-                  key={p.id}
-                  className={`spectator-player-btn ${spectatorTargetId === p.id ? 'active' : ''}`}
-                  onClick={() => setSpectatorTargetId(p.id)}
-                >
-                  {p.avatarUrl ? (
-                    <img src={p.avatarUrl} alt={p.name} className="spectator-btn-avatar" />
-                  ) : (
-                    <span className="spectator-btn-initial">{p.name?.charAt(0)}</span>
-                  )}
-                  <span className="spectator-btn-name">{p.name}</span>
-                </button>
-              ))}
+              {players.filter(p => !eliminatedPlayers.includes(p.id) && p.id !== currentPlayer?.id).map(p => {
+                const pData = opponentProgress[p.id];
+                return (
+                  <button
+                    key={p.id}
+                    className={`spectator-player-btn ${spectatorTargetId === p.id ? 'active' : ''}`}
+                    onClick={() => setSpectatorTargetId(p.id)}
+                  >
+                    {p.avatarUrl ? (
+                      <img src={p.avatarUrl} alt={p.name} className="spectator-btn-avatar" />
+                    ) : (
+                      <span className="spectator-btn-initial">{p.name?.charAt(0)}</span>
+                    )}
+                    <span className="spectator-btn-name">{p.name}</span>
+                    <span className="spectator-btn-progress">{pData?.progress || 0}%</span>
+                  </button>
+                );
+              })}
             </div>
             <button className="spectator-exit-btn" onClick={handleBackToLobby}>
               Exit to Lobby
@@ -1438,7 +1523,7 @@ const MultiplayerGame = ({
 
       {/* Tier Mode Intermission Modal - Only show for non-spectating players */}
       <AnimatePresence>
-        {showIntermission && mode === 'tier' && (
+        {showIntermission && mode === 'tier' && !isSpectating && !spectatorLoading && (
           <motion.div
             className="intermission-overlay"
             initial={{ opacity: 0 }}
@@ -1958,6 +2043,8 @@ const MultiplayerGame = ({
             );
           })()}
       </AnimatePresence>
+        </div>
+      )}
 
       {/* Player Disconnected Overlay */}
       <AnimatePresence>

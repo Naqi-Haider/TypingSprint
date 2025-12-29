@@ -3259,6 +3259,27 @@
   font-size: 1.1rem;
 }
 
+.spectator-target-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 8px;
+  border-left: 2px solid rgba(59, 130, 246, 0.3);
+}
+
+.target-name {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #3b82f6;
+}
+
+.target-stats {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
 .spectator-player-buttons {
   display: flex;
   gap: 8px;
@@ -3316,6 +3337,14 @@
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.spectator-btn-progress {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  min-width: 30px;
+  text-align: right;
 }
 
 .spectator-exit-btn {
