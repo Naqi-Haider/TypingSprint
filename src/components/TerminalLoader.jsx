@@ -1,16 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import './TerminalLoader.css';
+import '../styles/TerminalLoader.css';
 
-const TerminalLoader = ({ onComplete }) => {
-  const [currentStep, setCurrentStep] = useState(0); // 0: Ready, 1: Set, 2: Go!, 3: Done
+const TerminalLoader = memo(({ onComplete }) => {
+  const [currentStep, setCurrentStep] = useState(0);
   const [isExiting, setIsExiting] = useState(false);
-  const words = ['Ready', 'Set', 'Go!'];
+
+  const words = useMemo(() => ['Ready', 'Set', 'Go!'], []);
+
+  // Animation variants
+  const textVariants = useMemo(() => ({
+    initial: { y: 100, opacity: 0 },
+    animate: {
+      y: 0,
+      opacity: 1,
+      transition: { type: 'spring', stiffness: 300, damping: 25, duration: 0.4 }
+    },
+    exit: { y: -100, opacity: 0, transition: { duration: 0.3, ease: 'easeIn' } }
+  }), []);
 
   useEffect(() => {
-    // Prevent body scrolling when loader is active
     document.body.style.overflow = 'hidden';
-
     return () => {
       document.body.style.overflow = '';
     };
@@ -18,51 +28,18 @@ const TerminalLoader = ({ onComplete }) => {
 
   useEffect(() => {
     if (currentStep < 3) {
-      // Each word: slide in (0.4s) + pause (0.6s) + slide out (0.4s) = 1.4s total
       const timer = setTimeout(() => {
         setIsExiting(true);
-
-        // Wait for exit animation then move to next step
         setTimeout(() => {
           setIsExiting(false);
           setCurrentStep(prev => prev + 1);
-        }, 400); // Exit animation duration
-      }, 1000); // Display duration (slide-in + pause)
-
+        }, 400);
+      }, 1000);
       return () => clearTimeout(timer);
     } else {
-      // All words shown, call onComplete
-      if (onComplete) {
-        onComplete();
-      }
+      onComplete?.();
     }
   }, [currentStep, onComplete]);
-
-  // Animation variants for slide in/out from bottom
-  const textVariants = {
-    initial: {
-      y: 100,
-      opacity: 0
-    },
-    animate: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        type: 'spring',
-        stiffness: 300,
-        damping: 25,
-        duration: 0.4
-      }
-    },
-    exit: {
-      y: -100,
-      opacity: 0,
-      transition: {
-        duration: 0.3,
-        ease: 'easeIn'
-      }
-    }
-  };
 
   return (
     <div className="terminal-loader">
@@ -84,6 +61,8 @@ const TerminalLoader = ({ onComplete }) => {
       </div>
     </div>
   );
-};
+});
+
+TerminalLoader.displayName = 'TerminalLoader';
 
 export default TerminalLoader;

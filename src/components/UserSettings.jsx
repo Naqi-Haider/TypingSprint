@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import './UserSettings.css';
+import '../styles/UserSettings.css';
 
 const THEMES = [
   {

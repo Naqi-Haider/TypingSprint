@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import './MultiplayerGame.css';
+import '../styles/MultiplayerGame.css';
 
 // Player theme colors - synced with LobbyRoom.jsx
 const PLAYER_THEMES = {

@@ -4,7 +4,7 @@ import ParagraphResults from './ParagraphResults';
 import { getRandomParagraph, getNextDifficulty, DIFFICULTY_CONFIG } from '../data/ParagraphBank';
 import { useAuth } from '../context/AuthContext';
 import { usePlayTimeTracker } from '../hooks/usePlayTimeTracker';
-import './ParagraphEngine.css';
+import '../styles/ParagraphEngine.css';
 
 const BASE_TIME = 50; // 50 seconds base time per paragraph
 

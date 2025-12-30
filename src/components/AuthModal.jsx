@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import './AuthModal.css';
+import '../styles/AuthModal.css';
 
 const AuthModal = () => {
   const { isFirstVisit, showAuthModal, setShowAuthModal, login, signup, continueAsGuest, error, clearError, loading } = useAuth();

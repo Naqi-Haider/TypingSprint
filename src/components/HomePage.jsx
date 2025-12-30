@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
-import './HomePage.css';
+import '../styles/HomePage.css';
 import TypewriterText from './TypewriterText';
 import HeroTypewriter from './HeroTypewriter';
 import sbPreview from '../assets/sb_preview.mp4';

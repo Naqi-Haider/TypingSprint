@@ -1,5 +1,5 @@
-import './App.css';
-import { useState, useEffect } from 'react';
+import './styles/App.css';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import GameEngine from './components/GameEngine';
@@ -9,7 +9,7 @@ import LobbyRoom from './components/LobbyRoom';
 import TerminalLoader from './components/TerminalLoader';
 import { AuthProvider, AuthModal } from './components/AuthSystem';
 
-// Theme mapping
+// Theme mapping - defined outside component to avoid recreation
 const THEME_CLASSES = {
   'retro': '',
   'blue': 'theme-blue',
@@ -19,7 +19,6 @@ const THEME_CLASSES = {
   'obsidian': 'theme-obsidian'
 };
 
-// Main App Content (needs to be inside Router for useNavigate)
 function AppContent() {
   const navigate = useNavigate();
   const [resetKey, setResetKey] = useState(0);
@@ -47,12 +46,10 @@ function AppContent() {
     };
 
     window.addEventListener('themeChange', handleThemeChange);
-
-    return () => {
-      window.removeEventListener('themeChange', handleThemeChange);
-    };
+    return () => window.removeEventListener('themeChange', handleThemeChange);
   }, []);
 
+  // Mouse position tracking for gradient effects
   useEffect(() => {
     const handleMouseMove = (e) => {
       const x = (e.clientX / window.innerWidth) * 100;
@@ -65,29 +62,33 @@ function AppContent() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  const handleLogoClick = () => {
+  // Memoized event handlers
+  const handleLogoClick = useCallback(() => {
     setCurrentView('home');
     setIsLoading(false);
     setIsGameReady(false);
     setResetKey(prev => prev + 1);
     navigate('/');
-  };
+  }, [navigate]);
 
-  const handleStartGame = (mode) => {
+  const handleStartGame = useCallback((mode) => {
     setGameMode(mode);
     setIsLoading(true);
     setIsGameReady(false);
     setCurrentView('loading');
-  };
+  }, []);
 
-  const handleLoadingComplete = () => {
+  const handleLoadingComplete = useCallback(() => {
     setIsLoading(false);
     setIsGameReady(true);
     setCurrentView('game');
-  };
+  }, []);
+
+  // Memoize theme class
+  const themeClass = useMemo(() => THEME_CLASSES[currentTheme] || '', [currentTheme]);
 
   return (
-    <div className={`app-wrapper ${THEME_CLASSES[currentTheme] || ''}`}>
+    <div className={`app-wrapper ${themeClass}`}>
       <AuthModal />
       <div className="app">
         <Navbar onLogoClick={handleLogoClick} />

@@ -1,4 +1,5 @@
-import './Navbar.css';
+import { memo, useEffect, useState, useMemo, useCallback } from 'react';
+import '../styles/Navbar.css';
 import AnimatedLogo from './AnimatedLogo';
 import keyboardIcon from '../assets/keyboard.svg';
 import keyboardBlue from '../assets/keyboard (2).svg';
@@ -7,47 +8,37 @@ import keyboardObsidian from '../assets/keyboard (5).svg';
 import keyboardSakura from '../assets/keyboard (6).svg';
 import keyboardPaper from '../assets/keyboard (7).svg';
 import { NavbarAuth } from './AuthSystem';
-import { useEffect, useState } from 'react';
 
-
-const Navbar = ({ onLogoClick }) => {
+const Navbar = memo(({ onLogoClick }) => {
   const [currentIcon, setCurrentIcon] = useState(keyboardIcon);
 
-  // Map theme to keyboard icon
-  const themeIcons = {
+  // Memoize theme icons map
+  const themeIcons = useMemo(() => ({
     'retro': keyboardIcon,
     'blue': keyboardBlue,
     'sakura': keyboardSakura,
     'paper': keyboardPaper,
     'gold': keyboardGold,
     'obsidian': keyboardObsidian
-  };
+  }), []);
 
-  // Get logo based on theme class
-  const getLogoSrc = (theme) => {
+  // Memoize logo source getter
+  const getLogoSrc = useCallback((theme) => {
     switch (theme) {
-      case 'theme-blue':
-        return keyboardBlue;
-      case 'theme-sakura':
-        return keyboardSakura;
-      case 'theme-paper':
-        return keyboardPaper;
-      case 'theme-gold':
-        return keyboardGold;
-      case 'theme-obsidian':
-        return keyboardObsidian;
+      case 'theme-blue': return keyboardBlue;
+      case 'theme-sakura': return keyboardSakura;
+      case 'theme-paper': return keyboardPaper;
+      case 'theme-gold': return keyboardGold;
+      case 'theme-obsidian': return keyboardObsidian;
       case 'theme-retro':
-      default:
-        return keyboardIcon;
+      default: return keyboardIcon;
     }
-  };
+  }, []);
 
   useEffect(() => {
-    // Get current theme from localStorage
     const savedTheme = localStorage.getItem('selectedTheme') || 'retro';
     setCurrentIcon(themeIcons[savedTheme] || keyboardIcon);
 
-    // Listen for theme changes from other tabs
     const handleStorageChange = (e) => {
       if (e.key === 'selectedTheme') {
         const newTheme = e.newValue || 'retro';
@@ -55,10 +46,8 @@ const Navbar = ({ onLogoClick }) => {
       }
     };
 
-    // Listen for theme changes within the same tab (custom event)
     const handleThemeChange = (e) => {
       const newTheme = e.detail || 'retro';
-      // Support both theme name and theme class
       if (newTheme.startsWith('theme-')) {
         setCurrentIcon(getLogoSrc(newTheme));
       } else {
@@ -72,7 +61,7 @@ const Navbar = ({ onLogoClick }) => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('themeChange', handleThemeChange);
     };
-  }, []);
+  }, [themeIcons, getLogoSrc]);
 
   return (
     <nav className="navbar glass">
@@ -85,6 +74,8 @@ const Navbar = ({ onLogoClick }) => {
       </div>
     </nav>
   );
-};
+});
+
+Navbar.displayName = 'Navbar';
 
 export default Navbar;

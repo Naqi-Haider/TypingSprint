@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import './TypewriterText.css';
+import { useState, useEffect, memo } from 'react';
+import '../styles/TypewriterText.css';
 
-const TypewriterText = ({ text, speed = 100, deleteSpeed = 50, pauseDuration = 2000 }) => {
+const TypewriterText = memo(({ text, speed = 100, deleteSpeed = 50, pauseDuration = 2000 }) => {
   const [displayText, setDisplayText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -19,19 +19,15 @@ const TypewriterText = ({ text, speed = 100, deleteSpeed = 50, pauseDuration = 2
 
     const timer = setTimeout(() => {
       if (!isDeleting) {
-        // Typing
         if (displayText.length < text.length) {
           setDisplayText(text.slice(0, displayText.length + 1));
         } else {
-          // Finished typing, pause before deleting
           setIsPaused(true);
         }
       } else {
-        // Deleting
         if (displayText.length > 0) {
           setDisplayText(text.slice(0, displayText.length - 1));
         } else {
-          // Finished deleting, start typing again
           setIsDeleting(false);
         }
       }
@@ -41,6 +37,8 @@ const TypewriterText = ({ text, speed = 100, deleteSpeed = 50, pauseDuration = 2
   }, [displayText, isDeleting, isPaused, text, speed, deleteSpeed, pauseDuration]);
 
   return <span className="typewriter-text">{displayText}</span>;
-};
+});
+
+TypewriterText.displayName = 'TypewriterText';
 
 export default TypewriterText;

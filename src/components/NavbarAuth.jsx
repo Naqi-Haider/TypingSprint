@@ -1,13 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import UserSettings from './UserSettings';
-import './NavbarAuth.css';
+import '../styles/NavbarAuth.css';
 
-// NOTE: AuthModal component must be rendered at the root level in App.jsx
-// to ensure it covers the full screen and avoids clipping issues from
-// parent container overflow/positioning constraints. Do NOT render it here.
-
-const NavbarAuth = () => {
+const NavbarAuth = memo(() => {
   const { user, isGuest, isLoggedIn, logout, setShowAuthModal } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -24,28 +20,36 @@ const NavbarAuth = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     logout();
     setShowDropdown(false);
-  };
+  }, [logout]);
 
-  const handleOpenSettings = () => {
+  const handleOpenSettings = useCallback(() => {
     setShowDropdown(false);
     setShowSettings(true);
-  };
+  }, []);
+
+  const handleCloseSettings = useCallback(() => {
+    setShowSettings(false);
+  }, []);
+
+  const toggleDropdown = useCallback(() => {
+    setShowDropdown(prev => !prev);
+  }, []);
+
+  const handleShowAuthModal = useCallback(() => {
+    setShowAuthModal(true);
+  }, [setShowAuthModal]);
 
   if (showSettings) {
-    return <UserSettings onClose={() => setShowSettings(false)} />;
+    return <UserSettings onClose={handleCloseSettings} />;
   }
 
-  // Explicitly check if user exists and is logged in
   if (user && user !== 'guest') {
     return (
       <div className="navbar-auth" ref={dropdownRef}>
-        <div
-          className="user-profile glass"
-          onClick={() => setShowDropdown(!showDropdown)}
-        >
+        <div className="user-profile glass" onClick={toggleDropdown}>
           <div className="user-avatar">
             {user.avatarUrl ? (
               <img src={user.avatarUrl} alt={user.name} className="avatar-img" />
@@ -60,7 +64,6 @@ const NavbarAuth = () => {
             height="16"
             viewBox="0 0 24 24"
             fill="none"
-            xmlns="http://www.w3.org/2000/svg"
           >
             <polyline points="6 9 12 15 18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -85,7 +88,7 @@ const NavbarAuth = () => {
             <div className="dropdown-divider"></div>
 
             <button className="dropdown-item" onClick={handleOpenSettings}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                 <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M12 1v6m0 6v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M1 12h6m6 0h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -94,7 +97,7 @@ const NavbarAuth = () => {
             </button>
 
             <button className="dropdown-item logout" onClick={handleLogout}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 <polyline points="16 17 21 12 16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 <line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -105,24 +108,22 @@ const NavbarAuth = () => {
         )}
       </div>
     );
-  } else {
-    // Always render Login button when user is null or guest
-    return (
-      <div className="navbar-auth">
-        <button
-          className="login-button glass"
-          onClick={() => setShowAuthModal(true)}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <polyline points="10 17 15 12 10 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <line x1="15" y1="12" x2="3" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span>Login</span>
-        </button>
-      </div>
-    );
   }
-};
+
+  return (
+    <div className="navbar-auth">
+      <button className="login-button glass" onClick={handleShowAuthModal}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <polyline points="10 17 15 12 10 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <line x1="15" y1="12" x2="3" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span>Login</span>
+      </button>
+    </div>
+  );
+});
+
+NavbarAuth.displayName = 'NavbarAuth';
 
 export default NavbarAuth;

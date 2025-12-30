@@ -5,7 +5,7 @@ import Results from './Results';
 import TerminalLoader from './TerminalLoader';
 import { useAuth } from '../context/AuthContext';
 import { usePlayTimeTracker } from '../hooks/usePlayTimeTracker';
-import './GameEngine.css';
+import '../styles/GameEngine.css';
 
 // Organized word bank by grammatical type
 const WORD_TYPES = {

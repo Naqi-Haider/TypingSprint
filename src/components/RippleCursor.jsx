@@ -1,5 +1,5 @@
-import { useReducer, useEffect } from 'react';
-import './RippleCursor.css';
+import { useReducer, useEffect, useCallback, memo } from 'react';
+import '../styles/RippleCursor.css';
 
 const rippleReducer = (state, action) => {
   switch (action.type) {
@@ -12,10 +12,10 @@ const rippleReducer = (state, action) => {
   }
 };
 
-const RippleCursor = ({ maxSize = 50, duration = 1000, blur = true }) => {
+const RippleCursor = memo(({ maxSize = 50, duration = 1000, blur = true }) => {
   const [ripples, dispatch] = useReducer(rippleReducer, []);
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = useCallback((e) => {
     const ripple = {
       id: `${Date.now()}-${Math.random()}`,
       x: e.clientX,
@@ -25,14 +25,14 @@ const RippleCursor = ({ maxSize = 50, duration = 1000, blur = true }) => {
     setTimeout(() => {
       dispatch({ type: 'REMOVE_RIPPLE', payload: ripple.id });
     }, duration);
-  };
+  }, [duration]);
 
   useEffect(() => {
     window.addEventListener('mousemove', handleMouseMove);
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [duration]);
+  }, [handleMouseMove]);
 
   return (
     <div className="ripple-cursor-container">
@@ -52,6 +52,8 @@ const RippleCursor = ({ maxSize = 50, duration = 1000, blur = true }) => {
       ))}
     </div>
   );
-};
+});
+
+RippleCursor.displayName = 'RippleCursor';
 
 export default RippleCursor;

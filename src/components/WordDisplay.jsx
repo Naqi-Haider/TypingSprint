@@ -1,14 +1,14 @@
-import './WordDisplay.css';
+import { memo, useMemo, useCallback } from 'react';
+import '../styles/WordDisplay.css';
 
-const WordDisplay = ({ words, currentWordIndex, userInput, hasError, errorCharIndex }) => {
-  // Calculate positions - linear strip movement
-  const getWordPosition = (index) => {
-    const relativeIndex = index - currentWordIndex;
-    return relativeIndex;
-  };
+const WordDisplay = memo(({ words, currentWordIndex, userInput, hasError, errorCharIndex }) => {
+  // Memoize position calculator
+  const getWordPosition = useCallback((index) => {
+    return index - currentWordIndex;
+  }, [currentWordIndex]);
 
-  // Render word with character-by-character fade
-  const renderWord = (word, index) => {
+  // Memoize word renderer
+  const renderWord = useCallback((word, index) => {
     const position = getWordPosition(index);
     const isActive = index === currentWordIndex;
     const isPast = index < currentWordIndex;
@@ -21,20 +21,12 @@ const WordDisplay = ({ words, currentWordIndex, userInput, hasError, errorCharIn
           let shouldShake = false;
 
           if (isActive) {
-            // Active word character logic
             if (charIndex < userInput.length) {
-              if (userInput[charIndex] === char) {
-                className += ' correct';
-              } else {
-                className += ' incorrect';
-                // Check if this is the error character that should shake
-                if (charIndex === errorCharIndex && hasError) {
-                  shouldShake = true;
-                }
+              className += userInput[charIndex] === char ? ' correct' : ' incorrect';
+              if (userInput[charIndex] !== char && charIndex === errorCharIndex && hasError) {
+                shouldShake = true;
               }
             } else if (charIndex === userInput.length) {
-              // Current character (cursor position)
-              // If there's an error at this position, show it as error instead of current
               if (charIndex === errorCharIndex && hasError) {
                 className += ' incorrect';
                 shouldShake = true;
@@ -43,33 +35,23 @@ const WordDisplay = ({ words, currentWordIndex, userInput, hasError, errorCharIn
               }
             }
           } else if (isPast) {
-            // Fade past characters progressively
             const fadeDelay = charIndex * 0.02;
-            className += ' past-char';
             return (
               <span
                 key={charIndex}
-                className={className}
-                style={{
-                  animationDelay: `${fadeDelay}s`,
-                  opacity: 0.2
-                }}
+                className={`${className} past-char`}
+                style={{ animationDelay: `${fadeDelay}s`, opacity: 0.2 }}
               >
                 {char}
               </span>
             );
           } else if (isFuture) {
-            // Fade future characters progressively
             const fadeDelay = charIndex * 0.02;
-            className += ' future-char';
             return (
               <span
                 key={charIndex}
-                className={className}
-                style={{
-                  animationDelay: `${fadeDelay}s`,
-                  opacity: 0.5
-                }}
+                className={`${className} future-char`}
+                style={{ animationDelay: `${fadeDelay}s`, opacity: 0.5 }}
               >
                 {char}
               </span>
@@ -77,48 +59,48 @@ const WordDisplay = ({ words, currentWordIndex, userInput, hasError, errorCharIn
           }
 
           return (
-            <span
-              key={charIndex}
-              className={`${className} ${shouldShake ? 'shake-char' : ''}`}
-            >
+            <span key={charIndex} className={`${className} ${shouldShake ? 'shake-char' : ''}`}>
               {char}
             </span>
           );
         })}
       </div>
     );
-  };
+  }, [currentWordIndex, userInput, hasError, errorCharIndex, getWordPosition]);
+
+  // Memoize visible words
+  const visibleWords = useMemo(() => {
+    return words.map((word, index) => {
+      const position = getWordPosition(index);
+      if (position < -3 || position > 3) return null;
+
+      const isActive = index === currentWordIndex;
+      const isPast = index < currentWordIndex;
+      const isFuture = index > currentWordIndex;
+
+      return (
+        <div
+          key={`word-${index}`}
+          className={`word-item ${isActive ? 'active' : ''} ${isPast ? 'past' : ''} ${isFuture ? 'future' : ''}`}
+          style={{
+            transform: `translateX(${position * 350}px)`,
+            scale: isActive ? 1.3 : 0.9,
+            transition: 'transform 0.3s ease, scale 0.3s ease'
+          }}
+        >
+          {renderWord(word, index)}
+        </div>
+      );
+    }).filter(Boolean);
+  }, [words, currentWordIndex, getWordPosition, renderWord]);
 
   return (
     <div className="word-display-container">
-      <div className="words-track">
-        {words.map((word, index) => {
-          const position = getWordPosition(index);
-          const isActive = index === currentWordIndex;
-          const isPast = index < currentWordIndex;
-          const isFuture = index > currentWordIndex;
-
-          // Show 3 words on left, current word, and 3 words on right for balance
-          if (position < -3) return null;
-          if (position > 3) return null;
-
-          return (
-            <div
-              key={`word-${index}`}
-              className={`word-item ${isActive ? 'active' : ''} ${isPast ? 'past' : ''} ${isFuture ? 'future' : ''}`}
-              style={{
-                transform: `translateX(${position * 350}px)`,
-                scale: isActive ? 1.3 : 0.9,
-                transition: 'transform 0.3s ease, scale 0.3s ease'
-              }}
-            >
-              {renderWord(word, index)}
-            </div>
-          );
-        })}
-      </div>
+      <div className="words-track">{visibleWords}</div>
     </div>
   );
-};
+});
+
+WordDisplay.displayName = 'WordDisplay';
 
 export default WordDisplay;

@@ -1,20 +1,24 @@
-import { useState, useEffect } from 'react';
-import './HeroTypewriter.css';
+import { useState, useEffect, memo, useMemo } from 'react';
+import '../styles/HeroTypewriter.css';
 
-const HeroTypewriter = ({ 
-  strings, 
-  typingSpeed = 50, 
-  deletingSpeed = 30, 
-  pauseDuration = 1500 
+const HeroTypewriter = memo(({
+  strings,
+  typingSpeed = 50,
+  deletingSpeed = 30,
+  pauseDuration = 1500
 }) => {
   const [currentStringIndex, setCurrentStringIndex] = useState(0);
   const [displayText, setDisplayText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
 
-  useEffect(() => {
-    const currentString = strings[currentStringIndex];
+  // Memoize current string
+  const currentString = useMemo(() =>
+    strings[currentStringIndex],
+    [strings, currentStringIndex]
+  );
 
+  useEffect(() => {
     if (isPaused) {
       const pauseTimer = setTimeout(() => {
         setIsPaused(false);
@@ -27,19 +31,15 @@ const HeroTypewriter = ({
 
     const timer = setTimeout(() => {
       if (!isDeleting) {
-        // Typing phase
         if (displayText.length < currentString.length) {
           setDisplayText(currentString.slice(0, displayText.length + 1));
         } else {
-          // Finished typing, pause before deleting
           setIsPaused(true);
         }
       } else {
-        // Deleting phase
         if (displayText.length > 0) {
           setDisplayText(currentString.slice(0, displayText.length - 1));
         } else {
-          // Finished deleting, move to next string
           setIsDeleting(false);
           setCurrentStringIndex((prevIndex) => (prevIndex + 1) % strings.length);
         }
@@ -47,7 +47,7 @@ const HeroTypewriter = ({
     }, currentSpeed);
 
     return () => clearTimeout(timer);
-  }, [displayText, isDeleting, isPaused, currentStringIndex, strings, typingSpeed, deletingSpeed, pauseDuration]);
+  }, [displayText, isDeleting, isPaused, currentString, strings.length, typingSpeed, deletingSpeed, pauseDuration]);
 
   return (
     <div className="hero-typewriter">
@@ -55,6 +55,8 @@ const HeroTypewriter = ({
       <span className="hero-cursor">|</span>
     </div>
   );
-};
+});
+
+HeroTypewriter.displayName = 'HeroTypewriter';
 
 export default HeroTypewriter;

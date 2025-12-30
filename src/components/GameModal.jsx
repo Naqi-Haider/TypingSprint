@@ -1,19 +1,12 @@
-import React from 'react';
+import { memo, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import './GameModal.css';
+import '../styles/GameModal.css';
 
 /**
  * GameModal - Reusable modal component for notifications and confirmations
- * 
- * @param {boolean} isOpen - Controls modal visibility
- * @param {function} onClose - Callback when modal is closed
- * @param {string} title - Modal title
- * @param {string} message - Modal message content
- * @param {string} type - Modal type: 'info', 'error', 'success', 'warning', 'confirm'
- * @param {array} buttons - Array of button objects: [{ text, onClick, variant: 'primary'|'secondary'|'danger' }]
  */
-const GameModal = ({
+const GameModal = memo(({
   isOpen,
   onClose,
   title,
@@ -21,15 +14,14 @@ const GameModal = ({
   type = 'info',
   buttons = []
 }) => {
-  if (!isOpen) return null;
+  // Memoize default buttons
+  const modalButtons = useMemo(() =>
+    buttons.length > 0 ? buttons : [{ text: 'OK', onClick: onClose, variant: 'primary' }],
+    [buttons, onClose]
+  );
 
-  // Default buttons if none provided
-  const modalButtons = buttons.length > 0 ? buttons : [
-    { text: 'OK', onClick: onClose, variant: 'primary' }
-  ];
-
-  // Icon based on type
-  const getIcon = () => {
+  // Memoize icon based on type
+  const icon = useMemo(() => {
     switch (type) {
       case 'error':
         return (
@@ -61,7 +53,7 @@ const GameModal = ({
             <path d="M9 11l3 3L22 4" />
           </svg>
         );
-      default: // info
+      default:
         return (
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="10" />
@@ -70,7 +62,13 @@ const GameModal = ({
           </svg>
         );
     }
-  };
+  }, [type]);
+
+  const handleOverlayClick = useCallback((e) => {
+    e.stopPropagation();
+  }, []);
+
+  if (!isOpen) return null;
 
   return createPortal(
     <AnimatePresence>
@@ -87,16 +85,11 @@ const GameModal = ({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.8, opacity: 0 }}
           transition={{ type: 'spring', damping: 20 }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={handleOverlayClick}
         >
-          <div className="game-modal-icon">
-            {getIcon()}
-          </div>
-
+          <div className="game-modal-icon">{icon}</div>
           <h2 className="game-modal-title">{title}</h2>
-
           <p className="game-modal-message">{message}</p>
-
           <div className="game-modal-buttons">
             {modalButtons.map((button, index) => (
               <button
@@ -113,6 +106,8 @@ const GameModal = ({
     </AnimatePresence>,
     document.body
   );
-};
+});
+
+GameModal.displayName = 'GameModal';
 
 export default GameModal;

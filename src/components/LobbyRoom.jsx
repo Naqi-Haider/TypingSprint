@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { io } from 'socket.io-client';
 import MultiplayerGame from './MultiplayerGame';
 import GameModal from './GameModal';
-import './LobbyRoom.css';
+import '../styles/LobbyRoom.css';
 
 // Theme class mapping
 const THEME_CLASSES = {
