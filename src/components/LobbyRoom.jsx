@@ -100,6 +100,19 @@ const LobbyRoom = ({
     buttons: []
   });
 
+  // Ref to store initial user data - prevents socket reconnection when user stats update
+  const initialUserDataRef = useRef(null);
+
+  // Capture initial user data once
+  useEffect(() => {
+    if (!initialUserDataRef.current) {
+      initialUserDataRef.current = {
+        user,
+        isLoggedIn
+      };
+    }
+  }, [user, isLoggedIn]);
+
   // Initialize socket connection and join lobby
   useEffect(() => {
     if (!roomId) {
@@ -127,19 +140,26 @@ const LobbyRoom = ({
       console.log('Socket connected:', newSocket.id);
       setIsConnecting(false);
 
-      // Prepare user data for joining
-      const userName = isLoggedIn && user?.name
-        ? user.name
+      // Prepare user data for joining (use initial user data from ref)
+      const userData = initialUserDataRef.current || { user, isLoggedIn };
+      const userName = userData.isLoggedIn && userData.user?.name
+        ? userData.user.name
         : `Guest_${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
-      const userData = {
+      const userDataPayload = {
         id: newSocket.id,
         name: userName,
         theme: savedTheme,
-        avatarUrl: user?.avatarUrl || null,
+        avatarUrl: userData.user?.avatarUrl || null,
+        bannerUrl: userData.user?.bannerUrl || null,
+        avatarPosition: userData.user?.avatarPosition || { x: 50, y: 50 },
+        bannerPosition: userData.user?.bannerPosition || { x: 50, y: 50 },
+        mongoId: userData.user?.id || null,
         stats: {
-          wpm: user?.bestWPM || 0,
-          accuracy: 95
+          wpm: userData.user?.bestWPM || 0,
+          accuracy: userData.user?.accuracy || 95,
+          matchesWon: userData.user?.matchesWon || 0,
+          bestWPM: userData.user?.bestWPM || 0
         }
       };
 
@@ -149,7 +169,7 @@ const LobbyRoom = ({
       // Emit join_room event with session token if available
       newSocket.emit('join_room', {
         roomId,
-        user: userData,
+        user: userDataPayload,
         sessionToken: storedSessionToken || undefined
       });
     });
@@ -294,9 +314,10 @@ const LobbyRoom = ({
         sessionStorage.setItem(`lobby_session_${roomId}`, data.sessionToken);
       }
 
-      // Re-emit join_room with the session token
-      const userName = isLoggedIn && user?.name
-        ? user.name
+      // Re-emit join_room with the session token (use initial user data from ref)
+      const userData = initialUserDataRef.current || { user, isLoggedIn };
+      const userName = userData.isLoggedIn && userData.user?.name
+        ? userData.user.name
         : `Guest_${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
       const savedTheme = localStorage.getItem('selectedTheme') || 'retro';
       newSocket.emit('join_room', {
@@ -306,16 +327,16 @@ const LobbyRoom = ({
           id: newSocket.id,
           name: userName,
           theme: savedTheme,
-          avatarUrl: user?.avatarUrl || null,
-          bannerUrl: user?.bannerUrl || null,
-          avatarPosition: user?.avatarPosition || { x: 50, y: 50 },
-          bannerPosition: user?.bannerPosition || { x: 50, y: 50 },
-          mongoId: user?.id || null,
+          avatarUrl: userData.user?.avatarUrl || null,
+          bannerUrl: userData.user?.bannerUrl || null,
+          avatarPosition: userData.user?.avatarPosition || { x: 50, y: 50 },
+          bannerPosition: userData.user?.bannerPosition || { x: 50, y: 50 },
+          mongoId: userData.user?.id || null,
           stats: {
-            wpm: user?.bestWPM || 0,
-            accuracy: user?.accuracy || 95,
-            matchesWon: user?.matchesWon || 0,
-            bestWPM: user?.bestWPM || 0
+            wpm: userData.user?.bestWPM || 0,
+            accuracy: userData.user?.accuracy || 95,
+            matchesWon: userData.user?.matchesWon || 0,
+            bestWPM: userData.user?.bestWPM || 0
           }
         },
         sessionToken: data?.sessionToken
@@ -359,20 +380,32 @@ const LobbyRoom = ({
       });
     });
 
-    // Kicked by host
+    // Kicked by host - show modal AND navigate after a short delay
     newSocket.on('kicked', (data) => {
       setIsConnecting(false);
+
+      // Show the kicked notification modal
       setModalState({
         isOpen: true,
-        type: 'warning',
-        title: 'Kicked from Lobby',
-        message: 'You have been kicked from the lobby by the host.',
+        type: 'error',
+        title: 'Kicked',
+        message: data?.message || 'You have been kicked from the lobby by the host.',
         buttons: [{
           text: 'OK',
-          onClick: () => navigate('/'),
+          onClick: () => {
+            setModalState(prev => ({ ...prev, isOpen: false }));
+            newSocket.disconnect();
+            navigate('/');
+          },
           variant: 'primary'
         }]
       });
+
+      // Also navigate after 3 seconds regardless of user action
+      setTimeout(() => {
+        newSocket.disconnect();
+        navigate('/');
+      }, 3000);
     });
 
     // Settings updated notification
@@ -397,7 +430,7 @@ const LobbyRoom = ({
         newSocket.disconnect();
       }
     };
-  }, [roomId, user, isLoggedIn, navigate]);
+  }, [roomId, navigate]);
 
   // Countdown effect (Phase 1: 3-2-1 countdown)
   useEffect(() => {
@@ -703,149 +736,159 @@ const LobbyRoom = ({
                 >
                   {player ? (
                     <div className="player-card player-card-new">
-                      {/* Circular Avatar with Theme Border */}
-                      <div
-                        className="player-avatar-circle"
-                        onClick={() => setSelectedProfile(player)}
-                        style={{
-                          borderColor: PLAYER_THEMES[player.theme]?.primary || '#22c55e',
-                          boxShadow: `0 0 15px ${PLAYER_THEMES[player.theme]?.glow || 'rgba(34, 197, 94, 0.5)'}`
-                        }}
-                      >
-                        {player.avatarUrl ? (
-                          <img
-                            src={player.avatarUrl}
-                            alt={player.name}
-                            className="player-avatar-img-round"
-                            style={{ objectPosition: `${player.avatarPosition?.x || 50}% ${player.avatarPosition?.y || 50}%` }}
-                          />
+                      {/* Avatar Container */}
+                      <div className="player-avatar-container">
+                        {/* Circular Avatar with Theme Border */}
+                        <div
+                          className="player-avatar-circle"
+                          onClick={() => setSelectedProfile(player)}
+                          style={{
+                            borderColor: PLAYER_THEMES[player.theme]?.primary || '#22c55e',
+                            boxShadow: `0 0 12px ${PLAYER_THEMES[player.theme]?.glow || 'rgba(34, 197, 94, 0.4)'}`
+                          }}
+                        >
+                          {player.avatarUrl ? (
+                            <img
+                              src={player.avatarUrl}
+                              alt={player.name}
+                              className="player-avatar-img-round"
+                              style={{ objectPosition: `${player.avatarPosition?.x || 50}% ${player.avatarPosition?.y || 50}%` }}
+                            />
+                          ) : (
+                            <div
+                              className="player-avatar-initial-round"
+                              style={{ background: PLAYER_THEMES[player.theme]?.gradient }}
+                            >
+                              {player.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+
+                          {/* Hover overlay */}
+                          <div className="avatar-hover-overlay">
+                            <span>View</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* All elements in single row */}
+                      <span className="player-name-new">{player.name}</span>
+
+                      {/* Host badge inline */}
+                      {player.isHost && (
+                        <span className="badge-inline host">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                            <path d="M2 17h20l-2-11-5 4-3-6-3 6-5-4-2 11z" fill="#FFD700" />
+                          </svg>
+                          Host
+                        </span>
+                      )}
+
+                      {/* Level badge */}
+                      <span className="badge-inline level">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                          <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" fill="currentColor" />
+                        </svg>
+                        {Math.floor((player.stats?.hoursPlayed || 0)) + 1}
+                      </span>
+
+                      {/* Wins badge */}
+                      <span className="badge-inline wins">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                          <path d="M6 9H4.5a2.5 2.5 0 010-5H6M18 9h1.5a2.5 2.5 0 000-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22M18 2H6v7a6 6 0 1012 0V2z" stroke="currentColor" strokeWidth="2" fill="none" />
+                        </svg>
+                        {player.stats?.matchesWon || 0}
+                      </span>
+
+                      {/* Spacer to push status/buttons to right */}
+                      <div className="player-row-spacer"></div>
+
+                      {/* Status + Ready + Kick Button Group */}
+                      <div className="player-status-group">
+                        {/* Status Badge - In Game / Ready / Not Ready */}
+                        {player.inGame ? (
+                          <div className="status-indicator in-game">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+                              <polygon points="10,8 16,12 10,16" fill="currentColor" />
+                            </svg>
+                            In Game
+                          </div>
+                        ) : player.isReady ? (
+                          <div className="status-indicator ready">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                              <polyline points="20 6 9 17 4 12" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                            Ready
+                          </div>
                         ) : (
-                          <div
-                            className="player-avatar-initial-round"
-                            style={{ background: PLAYER_THEMES[player.theme]?.gradient }}
-                          >
-                            {player.name.charAt(0).toUpperCase()}
+                          <div className="status-indicator not-ready">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+                            </svg>
+                            Not Ready
                           </div>
                         )}
 
-                        {/* Hover overlay */}
-                        <div className="avatar-hover-overlay">
-                          <span>View Profile</span>
-                        </div>
-                      </div>
+                        {/* Ready button for current user */}
+                        {player.id === socket?.id && !player.isHost && !player.inGame && (
+                          <button
+                            className={`ready-toggle-btn-compact ${player.isReady ? 'ready' : ''}`}
+                            onClick={handleToggleReady}
+                          >
+                            {player.isReady ? 'Unready' : 'Ready Up'}
+                          </button>
+                        )}
 
-                      {/* Host crown - moved outside avatar */}
-                      {player.isHost && (
-                        <div className="host-crown">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M2 17h20l-2-11-5 4-3-6-3 6-5-4-2 11z" fill="#FFD700" />
-                          </svg>
-                        </div>
-                      )}
-
-                      {/* Kick button for host - moved outside avatar */}
-                      {isHost && !player.isHost && player.id !== socket?.id && (
-                        <button
-                          className="kick-btn-avatar"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setModalState({
-                              isOpen: true,
-                              type: 'confirm',
-                              title: 'Kick Player',
-                              message: `Are you sure you want to kick ${player.name} from the lobby?`,
-                              buttons: [
-                                {
-                                  text: 'Cancel',
-                                  onClick: () => setModalState(prev => ({ ...prev, isOpen: false })),
-                                  variant: 'secondary'
-                                },
-                                {
-                                  text: 'Kick',
-                                  onClick: () => {
-                                    handleKickPlayer(player.id);
-                                    setModalState(prev => ({ ...prev, isOpen: false }));
+                        {/* Kick button for host - inline at end of row */}
+                        {isHost && !player.isHost && player.id !== socket?.id && (
+                          <button
+                            className="kick-btn-inline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setModalState({
+                                isOpen: true,
+                                type: 'confirm',
+                                title: 'Kick Player',
+                                message: `Are you sure you want to kick ${player.name} from the lobby?`,
+                                buttons: [
+                                  {
+                                    text: 'Cancel',
+                                    onClick: () => setModalState(prev => ({ ...prev, isOpen: false })),
+                                    variant: 'secondary'
                                   },
-                                  variant: 'danger'
-                                }
-                              ]
-                            });
-                          }}
-                          title={`Kick ${player.name}`}
-                        >
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                            <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                            <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                          </svg>
-                        </button>
-                      )}
-
-                      {/* Player Name */}
-                      <span className="player-name-new">{player.name}</span>
-
-                      {/* Player Level Badge */}
-                      <div className="player-level-badge">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" fill="currentColor" />
-                        </svg>
-                        <span>Lv. {Math.floor((player.stats?.hoursPlayed || 0)) + 1}</span>
+                                  {
+                                    text: 'Kick',
+                                    onClick: () => {
+                                      handleKickPlayer(player.id);
+                                      setModalState(prev => ({ ...prev, isOpen: false }));
+                                    },
+                                    variant: 'danger'
+                                  }
+                                ]
+                              });
+                            }}
+                            title={`Kick ${player.name}`}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                              <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                              <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                            </svg>
+                            Kick
+                          </button>
+                        )}
                       </div>
-
-                      {/* Player Stats - Only Games Won */}
-                      <div className="player-stats-inline">
-                        <div className="player-stat-item">
-                          <span className="stat-value">{player.stats?.matchesWon || 0}</span>
-                          <span className="stat-label">Games Won</span>
-                        </div>
-                      </div>
-
-                      {/* Status Badge - In Game / Ready / Not Ready */}
-                      {player.inGame ? (
-                        <div className="status-indicator in-game">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-                            <polygon points="10,8 16,12 10,16" fill="currentColor" />
-                          </svg>
-                          In Game
-                        </div>
-                      ) : player.isReady ? (
-                        <div className="status-indicator ready">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                            <polyline points="20 6 9 17 4 12" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                          Ready
-                        </div>
-                      ) : (
-                        <div className="status-indicator not-ready">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-                          </svg>
-                          Not Ready
-                        </div>
-                      )}
-
-                      {/* Ready button for current user */}
-                      {player.id === socket?.id && !player.isHost && !player.inGame && (
-                        <button
-                          className={`ready-toggle-btn ${player.isReady ? 'ready' : ''}`}
-                          onClick={handleToggleReady}
-                          data-hover-text={player.isReady ? 'Not Ready' : 'Click to Ready'}
-                        >
-                          {player.isReady ? 'Ready!' : 'Click to Ready'}
-                        </button>
-                      )}
                     </div>
                   ) : (
-                    <div className="empty-slot">
-                      <div className="empty-icon">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <div className="empty-slot-row">
+                      <div className="empty-icon-small">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                           <circle cx="8.5" cy="7" r="4" stroke="currentColor" strokeWidth="2" />
                           <line x1="20" y1="8" x2="20" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                           <line x1="23" y1="11" x2="17" y2="11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                         </svg>
                       </div>
-                      <span className="empty-text">Waiting for player...</span>
+                      <span className="empty-text-row">Waiting for player...</span>
                     </div>
                   )}
                 </motion.div>
@@ -1123,29 +1166,38 @@ const LobbyRoom = ({
               {/* Banner */}
               <div
                 className="profile-modal-banner"
-                style={{
-                  background: selectedProfile.bannerUrl
-                    ? `url(${selectedProfile.bannerUrl})`
-                    : PLAYER_THEMES[selectedProfile.theme]?.gradient || 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-                  backgroundSize: 'cover',
-                  backgroundPosition: selectedProfile.bannerPosition
-                    ? `${selectedProfile.bannerPosition.x}% ${selectedProfile.bannerPosition.y}%`
-                    : 'center'
-                }}
+                style={selectedProfile.bannerUrl
+                  ? {
+                    backgroundImage: `url(${selectedProfile.bannerUrl})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: selectedProfile.bannerPosition
+                      ? `${selectedProfile.bannerPosition.x}% ${selectedProfile.bannerPosition.y}%`
+                      : 'center',
+                    backgroundRepeat: 'no-repeat'
+                  }
+                  : {
+                    background: PLAYER_THEMES[selectedProfile.theme]?.gradient || 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
+                  }
+                }
               >
                 {/* Avatar */}
                 <div
                   className="profile-modal-avatar"
-                  style={{
-                    background: selectedProfile.avatarUrl
-                      ? `url(${selectedProfile.avatarUrl})`
-                      : PLAYER_THEMES[selectedProfile.theme]?.gradient,
-                    backgroundSize: 'cover',
-                    backgroundPosition: selectedProfile.avatarPosition
-                      ? `${selectedProfile.avatarPosition.x}% ${selectedProfile.avatarPosition.y}%`
-                      : 'center',
-                    borderColor: PLAYER_THEMES[selectedProfile.theme]?.primary || '#22c55e'
-                  }}
+                  style={selectedProfile.avatarUrl
+                    ? {
+                      backgroundImage: `url(${selectedProfile.avatarUrl})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: selectedProfile.avatarPosition
+                        ? `${selectedProfile.avatarPosition.x}% ${selectedProfile.avatarPosition.y}%`
+                        : 'center',
+                      backgroundRepeat: 'no-repeat',
+                      borderColor: PLAYER_THEMES[selectedProfile.theme]?.primary || '#22c55e'
+                    }
+                    : {
+                      background: PLAYER_THEMES[selectedProfile.theme]?.gradient,
+                      borderColor: PLAYER_THEMES[selectedProfile.theme]?.primary || '#22c55e'
+                    }
+                  }
                 >
                   {!selectedProfile.avatarUrl && (
                     <div

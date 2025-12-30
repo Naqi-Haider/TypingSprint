@@ -93,38 +93,22 @@
   color: var(--primary);
 }
 
-/* Players Grid */
+/* Players Grid - Now vertical list */
 .players-grid {
-  display: grid;
-  gap: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
 }
 
-.players-2 {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.players-3 {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.players-4 {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.players-5 {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.players-6 {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.players-7 {
-  grid-template-columns: repeat(4, 1fr);
-}
-
+/* Remove all column-based classes - now single column list */
+.players-2,
+.players-3,
+.players-4,
+.players-5,
+.players-6,
+.players-7,
 .players-8 {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1fr;
 }
 
 /* Password Modal Overlay */
@@ -260,33 +244,34 @@
   box-shadow: 0 0 20px rgba(var(--primary-rgb, 34, 197, 94), 0.4);
 }
 
-/* Player Slot */
+/* Player Slot - Horizontal Row Style */
 .player-slot {
-  min-height: 200px;
-  border-radius: 16px;
+  min-height: 72px;
+  border-radius: 12px;
   overflow: hidden;
   transition: all 0.3s ease;
 }
 
 .player-slot.occupied {
   background: var(--bg-panel, var(--bg-secondary));
-  border: 3px solid var(--player-theme, var(--primary));
-  box-shadow: 0 0 25px var(--player-glow, rgba(34, 197, 94, 0.3));
+  border: 2px solid var(--player-theme, var(--primary));
+  box-shadow: 0 0 15px var(--player-glow, rgba(34, 197, 94, 0.2));
 }
 
 .player-slot.empty {
-  background: rgba(0, 0, 0, 0.2);
-  border: 3px dashed var(--text-muted);
+  background: rgba(0, 0, 0, 0.15);
+  border: 2px dashed var(--text-muted);
+  min-height: 60px;
 }
 
-/* Player Card */
+/* Player Card - Horizontal Row Layout */
 .player-card {
   height: 100%;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: var(--spacing-lg);
 }
 
 .player-avatar-wrapper {
@@ -1184,23 +1169,28 @@
   position: relative;
 }
 
-/* ========== New Player Card Styles ========== */
+/* ========== New Player Card Styles - Horizontal Row ========== */
 .player-card-new {
-  text-align: center;
-  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
   position: relative;
+  gap: var(--spacing-md);
+  width: 100%;
 }
 
 .player-avatar-circle {
   position: relative;
-  width: 90px;
-  height: 90px;
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
   border-radius: 50%;
-  border: 4px solid var(--primary);
+  border: 3px solid var(--primary);
   cursor: pointer;
   overflow: hidden;
-  margin: 0 auto var(--spacing-sm);
   transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
 .player-avatar-circle:hover {
@@ -1220,7 +1210,7 @@
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: 2.2rem;
+  font-size: 1.4rem;
   font-weight: 900;
   color: var(--bg-color, #000);
 }
@@ -1251,25 +1241,30 @@
 
 .host-crown {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  background: rgba(0, 0, 0, 0.8);
+  top: -4px;
+  left: -4px;
+  background: rgba(0, 0, 0, 0.9);
   border-radius: 50%;
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 5;
-  border: 2px solid rgba(255, 215, 0, 0.4);
+  border: 2px solid rgba(255, 215, 0, 0.5);
+}
+
+.host-crown svg {
+  width: 12px;
+  height: 12px;
 }
 
 .kick-btn-avatar {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 28px;
-  height: 28px;
+  top: -4px;
+  right: -4px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: rgba(239, 68, 68, 0.9);
   border: 2px solid rgba(255, 255, 255, 0.3);
@@ -1289,53 +1284,90 @@
 
 .player-name-new {
   font-family: var(--font-display);
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin-top: var(--spacing-sm);
-  text-align: center;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+  flex-shrink: 0;
 }
 
-/* Player Level Badge */
+/* Player Level Badge - Inline for horizontal */
 .player-level-badge {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 4px;
-  margin-top: var(--spacing-xs);
-  padding: 4px 12px;
+  padding: 3px 8px;
   background: rgba(var(--primary-rgb), 0.1);
   border: 1px solid rgba(var(--primary-rgb), 0.3);
-  border-radius: 12px;
+  border-radius: 8px;
   font-family: var(--font-display);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--primary);
+  white-space: nowrap;
 }
 
 .player-level-badge svg {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   color: var(--primary);
 }
 
-/* Player Stats Inline */
+/* Compact badges row for level + wins */
+.player-badges-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badge-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.badge-compact.level {
+  background: rgba(var(--primary-rgb), 0.15);
+  border: 1px solid rgba(var(--primary-rgb), 0.4);
+  color: var(--primary);
+}
+
+.badge-compact.wins {
+  background: rgba(255, 215, 0, 0.12);
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  color: #ffd700;
+}
+
+.badge-compact svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* Player Stats Inline - Horizontal layout */
 .player-stats-inline {
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin-top: var(--spacing-sm);
   padding: 0;
+  margin-left: auto;
 }
 
 .player-stat-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
+  gap: 4px;
+  padding: 4px 10px;
   background: rgba(var(--primary-rgb), 0.08);
   border: 1px solid rgba(var(--primary-rgb), 0.25);
-  border-radius: 10px;
+  border-radius: 8px;
   font-family: var(--font-primary);
   transition: all 0.2s ease;
 }
@@ -1353,18 +1385,17 @@
 }
 
 .player-stat-item .stat-value {
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin-right: 2px;
 }
 
 .player-stat-item .stat-label {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 
 .player-stats-new {
@@ -1398,6 +1429,176 @@
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
+}
+
+/* Avatar Container for horizontal layout */
+.player-avatar-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Spacer to push status/buttons to right */
+.player-row-spacer {
+  flex: 1;
+  min-width: 20px;
+}
+
+/* Inline badges - all same style base */
+.badge-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badge-inline svg {
+  width: 10px;
+  height: 10px;
+}
+
+.badge-inline.host {
+  background: rgba(255, 215, 0, 0.15);
+  border: 1px solid rgba(255, 215, 0, 0.5);
+  color: #ffd700;
+}
+
+.badge-inline.level {
+  background: rgba(var(--primary-rgb), 0.15);
+  border: 1px solid rgba(var(--primary-rgb), 0.4);
+  color: var(--primary);
+}
+
+.badge-inline.wins {
+  background: rgba(96, 165, 250, 0.15);
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  color: #60a5fa;
+}
+
+/* Larger player stat item */
+.player-stat-item-large {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 16px;
+  background: rgba(var(--primary-rgb), 0.1);
+  border: 1px solid rgba(var(--primary-rgb), 0.3);
+  border-radius: 10px;
+  min-width: 80px;
+}
+
+.stat-value-large {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--primary);
+  line-height: 1;
+  font-family: var(--font-display);
+}
+
+.stat-label-large {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+/* Status + Ready Button Group */
+.player-status-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-left: auto;
+}
+
+/* Inline kick button */
+.kick-btn-inline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  border-radius: 6px;
+  color: #ef4444;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.kick-btn-inline:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: #ef4444;
+}
+
+.kick-btn-inline svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Compact Ready Button for horizontal layout */
+.ready-toggle-btn-compact {
+  padding: 6px 12px;
+  background: transparent;
+  border: 2px solid var(--primary);
+  border-radius: 6px;
+  color: var(--primary);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ready-toggle-btn-compact:hover {
+  background: rgba(var(--primary-rgb), 0.1);
+}
+
+.ready-toggle-btn-compact.ready {
+  background: var(--primary);
+  color: var(--bg-color);
+}
+
+.ready-toggle-btn-compact.ready:hover {
+  background: rgba(239, 68, 68, 0.8);
+  border-color: #ef4444;
+  color: #fff;
+}
+
+/* Empty slot for horizontal layout */
+.empty-slot-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  color: var(--text-muted);
+}
+
+.empty-icon-small {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
+}
+
+.empty-text-row {
+  font-size: 0.85rem;
+  font-style: italic;
+  opacity: 0.7;
 }
 
 /* Status Indicators */

@@ -1738,3 +1738,27 @@
     justify-content: center;
   }
 }
+
+/* ============================================
+   Scroll Animation Classes
+   ============================================ */
+
+/* Initial hidden state - slide from left */
+.scroll-animate-left {
+  opacity: 0;
+  transform: translateX(-60px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+/* Initial hidden state - slide from bottom */
+.scroll-animate-bottom {
+  opacity: 0;
+  transform: translateY(60px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+/* Visible state - applied when element enters viewport */
+.scroll-visible {
+  opacity: 1;
+  transform: translateX(0) translateY(0);
+}

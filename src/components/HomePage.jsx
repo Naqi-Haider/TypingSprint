@@ -28,6 +28,7 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
   const { user, isLoggedIn } = useAuth();
   const modesSectionRef = useRef(null);
   const multiplayerSectionRef = useRef(null);
+  const contributeSectionRef = useRef(null);
   const [previewMode, setPreviewMode] = useState(null); // null, 'speed-bullet', or 'paragraph'
 
   // Multiplayer State
@@ -172,6 +173,35 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
       socket.off('lobby_error');
     };
   }, [navigate]);
+
+  // Scroll animation observer
+  useEffect(() => {
+    const observerOptions = {
+      root: null,
+      rootMargin: '0px',
+      threshold: 0.15 // Trigger when 15% of element is visible
+    };
+
+    const observerCallback = (entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('scroll-visible');
+        }
+      });
+    };
+
+    const observer = new IntersectionObserver(observerCallback, observerOptions);
+
+    // Observe both sections
+    if (multiplayerSectionRef.current) {
+      observer.observe(multiplayerSectionRef.current);
+    }
+    if (contributeSectionRef.current) {
+      observer.observe(contributeSectionRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   const scrollToModes = () => {
     modesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -563,7 +593,7 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
       </section>
 
       {/* Multiplayer Section - Split Screen Hero */}
-      <section className="multiplayer-section" ref={multiplayerSectionRef}>
+      <section className="multiplayer-section scroll-animate-left" ref={multiplayerSectionRef}>
         <h2 className="section-title multiplayer-heading">Multiplayer Modes</h2>
         <div className="multiplayer-split-container">
           {/* Paragraph Race - Full Width */}
@@ -604,7 +634,7 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
       </section>
 
       {/* GitHub Contribution Section */}
-      <section className="contribute-section">
+      <section className="contribute-section scroll-animate-bottom" ref={contributeSectionRef}>
         <div className="contribute-content">
           <h2 className="contribute-title">Open Source & Community Driven</h2>
           <p className="contribute-description">

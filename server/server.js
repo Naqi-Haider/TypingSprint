@@ -179,15 +179,13 @@ const getParagraphForMode = (mode, currentTier = 'easy', roomId = null) => {
   if (mode === 'tier') {
     pool = PARAGRAPHS.tier[currentTier] || PARAGRAPHS.tier.easy;
   } else {
-    // Random mode - use weighted probability: 40% Easy, 40% Medium, 20% Hard
+    // Random mode - use only Easy and Medium paragraphs (50% each, no Hard)
     const roll = Math.random();
     let selectedDifficulty;
-    if (roll < 0.4) {
+    if (roll < 0.5) {
       selectedDifficulty = 'easy';
-    } else if (roll < 0.8) {
-      selectedDifficulty = 'medium';
     } else {
-      selectedDifficulty = 'hard';
+      selectedDifficulty = 'medium';
     }
     pool = PARAGRAPHS[selectedDifficulty];
   }
@@ -601,7 +599,8 @@ io.on('connection', (socket) => {
               paragraphPools: tierParagraphs,
               readyForNextRound: new Set(), // Players who clicked ready
               activePlayers: new Set(lobby.players.map(p => p.id)), // Players still in game
-              failedThisRound: new Set() // Players who failed current round
+              failedThisRound: new Set(), // Players who failed current round
+              playerProgress: new Map() // Track current progress for each player: playerId -> { progress, wpm, accuracy }
             };
 
             // Initialize cumulative stats for all players
@@ -701,8 +700,14 @@ io.on('connection', (socket) => {
       // Emit 'kicked' event to the target player
       io.to(targetPlayerId).emit('kicked', { reason: 'Kicked by host' });
 
+      // Force kicked player to leave the socket room
+      const targetSocket = io.sockets.sockets.get(targetPlayerId);
+      if (targetSocket) {
+        targetSocket.leave(roomId);
+      }
+
       // Notify remaining players that player was removed
-      socket.to(roomId).emit('player_left', { playerId: targetPlayerId });
+      io.to(roomId).emit('player_left', { playerId: targetPlayerId });
 
       console.log(`Player ${targetPlayer.name} was kicked from lobby ${lobby.name} by host`);
     } catch (error) {
@@ -712,8 +717,11 @@ io.on('connection', (socket) => {
   });
 
   // Typing progress (broadcast to all players in room)
-  socket.on('typing_progress', ({ roomId, progress, wpm, accuracy, completed, completionTime, typedText }) => {
+  socket.on('typing_progress', ({ roomId, progress, wpm, accuracy, completed, completionTime, typedText, timedOut }) => {
     const lobby = lobbies.get(roomId);
+    if (completed) {
+      console.log(`[DEBUG] typing_progress received: completed=${completed}, roomId=${roomId}, lobby mode=${lobby?.mode}`);
+    }
     if (lobby) {
       // Broadcast progress to all other players in the room (including typedText for spectators)
       socket.to(roomId).emit('player_progress', {
@@ -726,6 +734,15 @@ io.on('connection', (socket) => {
         typedText // For spectator mode
       });
 
+      // Track player progress for tier mode (so we can include partial completers in results)
+      if (lobby.mode === 'tier' && lobby.tierState) {
+        lobby.tierState.playerProgress.set(socket.id, {
+          progress: progress || 0,
+          wpm: wpm || 0,
+          accuracy: accuracy || 0
+        });
+      }
+
       // If player completed, broadcast completion event to everyone
       if (completed) {
         const player = lobby.players.find(p => p.id === socket.id);
@@ -737,6 +754,12 @@ io.on('connection', (socket) => {
             lobby.completedPlayers = new Map();
           }
 
+          // Initialize scores if not exists
+          if (!lobby.gameScores) {
+            lobby.gameScores = new Map();
+            lobby.players.forEach(p => lobby.gameScores.set(p.id, 0));
+          }
+
           // Only add if not already completed
           if (!lobby.completedPlayers.has(socket.id)) {
             lobby.completedPlayers.set(socket.id, {
@@ -745,6 +768,8 @@ io.on('connection', (socket) => {
               completionTime,
               wpm,
               accuracy,
+              progress: progress || 100, // Store actual progress (for timeout cases)
+              timedOut: timedOut || false, // Track if player timed out vs actually finished
               position: lobby.completedPlayers.size + 1
             });
           }
@@ -758,41 +783,76 @@ io.on('connection', (socket) => {
           accuracy
         });
 
-        // Check if all players finished (random mode)
-        if ((lobby.mode === 'random' || !lobby.mode) &&
-          lobby.completedPlayers &&
-          lobby.completedPlayers.size >= lobby.players.length) {
-          // All players finished - build standings
+        // Check if all active players finished (random mode)
+        // Count only non-disconnected players
+        const activePlayers = lobby.players.filter(p => !p.disconnected);
+        const allActiveFinished = activePlayers.length > 0 &&
+          activePlayers.every(p => lobby.completedPlayers.has(p.id));
+
+        console.log(`[DEBUG] Player ${player?.name} completed. Mode: ${lobby.mode}, Completed: ${lobby.completedPlayers?.size}/${activePlayers.length} active players`);
+
+        if ((lobby.mode === 'random' || !lobby.mode) && allActiveFinished) {
+          console.log('[DEBUG] All active players completed - emitting game_over');
+
+          // Build standings with proper ranking:
+          // A "valid finisher" is someone who: (1) didn't timeout, AND (2) has WPM > 0
+          // 0 WPM is treated as a DNF/timeout regardless of completion signal
+          // 1. Valid finishers rank above everyone else
+          // 2. Among valid finishers: sort by completion time (lower is better)
+          // 3. Among timeouts/DNFs: sort by WPM (higher is better), then by progress
+          const isValidFinish = (p) => !p.timedOut && (p.wpm || 0) > 0;
+
           const standings = Array.from(lobby.completedPlayers.values())
-            .sort((a, b) => a.position - b.position);
+            .sort((a, b) => {
+              const aValid = isValidFinish(a);
+              const bValid = isValidFinish(b);
 
-          // Detect draw conditions:
-          // 1. All players have 0 progress (idle) - handled below
-          // 2. Top players have same WPM or completion time
-          const allPlayersProgress = standings.map(s => s.progress || 100);
-          const allIdle = allPlayersProgress.every(p => p === 0 || p === undefined);
+              // Valid finishers always rank higher than DNFs
+              if (aValid !== bValid) {
+                return aValid ? -1 : 1; // Valid finishers first
+              }
 
-          // Check if top players are tied (same WPM or same completion time within 100ms)
-          let isDraw = allIdle;
-          let tiedPlayers = [standings[0]];
+              if (aValid && bValid) {
+                // Both are valid finishers - sort by completion time (faster is better)
+                return (a.completionTime || 0) - (b.completionTime || 0);
+              }
 
-          if (!isDraw && standings.length > 1) {
-            const topWpm = standings[0]?.wpm || 0;
-            const topTime = standings[0]?.completionTime || 0;
+              // Both are DNFs (timed out or 0 WPM) - sort by WPM (higher is better)
+              if ((b.wpm || 0) !== (a.wpm || 0)) {
+                return (b.wpm || 0) - (a.wpm || 0);
+              }
+              // Same WPM - sort by progress (higher is better)
+              return (b.progress || 0) - (a.progress || 0);
+            });
 
-            for (let i = 1; i < standings.length; i++) {
-              const playerWpm = standings[i]?.wpm || 0;
-              const playerTime = standings[i]?.completionTime || 0;
+          // Assign proper positions after sorting
+          standings.forEach((s, idx) => {
+            s.position = idx + 1;
+          });
 
-              // Same WPM or completion time within 500ms = tie
-              if (playerWpm === topWpm || Math.abs(playerTime - topTime) < 500) {
-                tiedPlayers.push(standings[i]);
+          // Detect draw conditions (only among valid finishers):
+          const finishers = standings.filter(s => isValidFinish(s));
+          const allIdle = standings.every(s => (s.progress || 0) === 0);
+
+          // Draw if:
+          // 1. All players are idle (0 progress)
+          // 2. No valid finishers exist (everyone has 0 WPM or timed out)
+          // 3. Multiple valid finishers with same completion time
+          let isDraw = allIdle || finishers.length === 0;
+          let tiedPlayers = finishers.length > 0 ? [finishers[0]] : [...standings]; // If no finishers, all are tied
+
+          if (!isDraw && finishers.length > 1) {
+            const topTime = finishers[0]?.completionTime || 0;
+            // Check for tie: completion time within 500ms
+            for (let i = 1; i < finishers.length; i++) {
+              const playerTime = finishers[i]?.completionTime || 0;
+              if (Math.abs(playerTime - topTime) < 0.5) { // Within 500ms
+                tiedPlayers.push(finishers[i]);
               } else {
                 break;
               }
             }
-
-            isDraw = tiedPlayers.length > 1 || allIdle;
+            isDraw = tiedPlayers.length > 1;
           }
 
           // Initialize or update lobby win tracking
@@ -950,19 +1010,15 @@ io.on('connection', (socket) => {
 
     tierState.failedThisRound.add(socket.id);
 
-    // Elimination Logic:
-    // In Easy/Medium rounds, fail = immediate elimination.
-    // In Hard rounds, fail = elimination if they didn't finish even in penalty time.
+    // Elimination Logic (Updated):
+    // In ALL rounds (0-7), failing to complete the paragraph = ELIMINATION
+    // This is the intended competitive nature of Tier Mode
     const difficulty = TIER_SCHEDULE[roundIndex];
-    const isHardMode = difficulty === 'hard';
-
-    // Track failure
-    tierState.failedThisRound.add(socket.id);
 
     const stats = tierState.cumulativeStats.get(socket.id);
+
+    // Eliminate player - they are out of the game
     if (stats && !stats.isEliminated) {
-      // Eliminate player if not hard mode OR if they actually reached the hard limit (-20)
-      // The client only emits tier_player_failed when they truly run out of all time (including penalty if applicable)
       stats.isEliminated = true;
       tierState.activePlayers.delete(socket.id);
 
@@ -970,20 +1026,32 @@ io.on('connection', (socket) => {
         playerId: socket.id,
         playerName: player.name,
         roundIndex,
-        difficulty
+        difficulty,
+        isEliminated: true
       });
 
-      console.log(`${player.name} eliminated from tier game in ${lobby.name} during ${difficulty} round`);
+      console.log(`${player.name} ELIMINATED from tier game in ${lobby.name} during ${difficulty.toUpperCase()} round ${roundIndex}`);
     }
 
     // Check if round should end
-    const activePlayerCount = tierState.activePlayers.size;
+    const currentRound = tierState.currentRound;
     const finishedCount = tierState.finishOrder.length;
     const failedCount = tierState.failedThisRound.size;
+    // Count all players who were active (not eliminated before this round)
+    // This includes players eliminated THIS round (they're still in failedThisRound)
+    const totalPlayersThisRound = lobby.players.filter(p => {
+      const playerStats = tierState.cumulativeStats.get(p.id);
+      // Player was not eliminated BEFORE this round started
+      // (if they're in failedThisRound, they failed this round, so they count)
+      return !playerStats?.isEliminated || tierState.failedThisRound.has(p.id);
+    }).length;
 
     // Check if ALL players failed (no one finished)
-    if (finishedCount === 0 && failedCount >= lobby.players.length) {
-      // All players failed - determine winner by best stats
+    if (finishedCount === 0 && failedCount >= totalPlayersThisRound) {
+      const difficulty = TIER_SCHEDULE[roundIndex];
+
+      // Since all rounds now eliminate players on failure, if ALL players failed,
+      // the game ends immediately. Determine winner by best stats.
       const leaderboard = Array.from(tierState.cumulativeStats.entries())
         .map(([playerId, stats]) => ({
           playerId,
@@ -1015,11 +1083,11 @@ io.on('connection', (socket) => {
       lobby.gameInProgress = false;
       delete lobby.tierState;
 
-      console.log(`Tier game ended in ${lobby.name} - All players failed. Winner: ${winner?.playerName}`);
+      console.log(`Tier game ended in ${lobby.name} - All players failed round ${roundIndex} (${difficulty}). Winner: ${winner?.playerName}`);
       return;
     }
 
-    if (finishedCount + failedCount >= activePlayerCount || activePlayerCount <= 1) {
+    if (finishedCount + failedCount >= totalPlayersThisRound || tierState.activePlayers.size <= 1) {
       handleRoundEnd(roomId, lobby);
     }
   });
@@ -1108,38 +1176,114 @@ io.on('connection', (socket) => {
       completionTime: f.completionTime
     }));
 
-    // Add failed players to results
+    // Add failed players to results (with their actual progress if any)
     tierState.failedThisRound.forEach(playerId => {
       const player = lobby.players.find(p => p.id === playerId);
       const stats = tierState.cumulativeStats.get(playerId);
       if (player && !roundResults.find(r => r.playerId === playerId)) {
+        // Get their actual progress data
+        const progressData = tierState.playerProgress.get(playerId);
+        const progress = progressData?.progress || 0;
+        const wpm = progressData?.wpm || 0;
+        const accuracy = progressData?.accuracy || 0;
+
         roundResults.push({
           playerId,
           playerName: player.name,
           position: roundResults.length + 1,
-          wpm: 0,
-          precision: 0,
+          wpm: wpm,
+          accuracy: accuracy,
+          progress: progress,
           failed: true,
+          dnf: progress > 0, // DNF if had some progress but didn't finish
           isEliminated: stats?.isEliminated || false
         });
       }
     });
 
-    // If only one player finishes and it's Easy/Medium, they win immediately?
-    // User says: "If all players except for one are failed to complete the paragraph in easy or medium mode the winner would be decided straight forward"
+    // Add players who were in-progress (partial completers) but didn't finish or fail explicitly
+    // These are players who had some progress but time ran out before they completed
+    lobby.players.forEach(player => {
+      const playerId = player.id;
+      // Skip if already in results (finished or failed)
+      if (roundResults.find(r => r.playerId === playerId)) return;
+
+      // Check if player was active this round
+      const stats = tierState.cumulativeStats.get(playerId);
+      if (!stats) return;
+
+      // Get their tracked progress
+      const progressData = tierState.playerProgress.get(playerId);
+      const progress = progressData?.progress || 0;
+      const wpm = progressData?.wpm || 0;
+      const accuracy = progressData?.accuracy || 0;
+
+      // Add to results as incomplete (DNF - Did Not Finish)
+      roundResults.push({
+        playerId,
+        playerName: player.name,
+        position: roundResults.length + 1,
+        wpm: wpm,
+        accuracy: accuracy,
+        progress: progress,
+        incomplete: true, // Mark as incomplete (was in progress)
+        failed: progress === 0, // If 0 progress, mark as failed (didn't even start)
+        isEliminated: stats?.isEliminated || false
+      });
+    });
+
+    // Sort round results: completed players by position, then incomplete by progress (higher first)
+    roundResults.sort((a, b) => {
+      // Completed players come first
+      if (!a.incomplete && !a.failed && (b.incomplete || b.failed)) return -1;
+      if ((a.incomplete || a.failed) && !b.incomplete && !b.failed) return 1;
+
+      // Among completed, sort by original position
+      if (!a.incomplete && !a.failed && !b.incomplete && !b.failed) {
+        return a.position - b.position;
+      }
+
+      // Among incomplete/failed, sort by progress (higher first)
+      const aProgress = a.progress || 0;
+      const bProgress = b.progress || 0;
+      if (aProgress !== bProgress) return bProgress - aProgress;
+
+      // If same progress, sort by WPM
+      return (b.wpm || 0) - (a.wpm || 0);
+    });
+
+    // Reassign positions after sorting
+    roundResults.forEach((r, idx) => {
+      r.position = idx + 1;
+    });
+
+    // RULE: If only ONE player finishes (completes the paragraph), they win immediately.
+    // Since all rounds now eliminate players on failure, this applies to ALL difficulties.
+    // DNF (Did Not Finish) = ELIMINATED. Only completion = success.
     const difficulty = TIER_SCHEDULE[currentRound];
-    if (difficulty !== 'hard' && tierState.activePlayers.size === 1 && !isLastRound) {
-      // Single survivor in Easy/Medium round - they win!
-      const winnerId = Array.from(tierState.activePlayers)[0];
+    const finishersCount = tierState.finishOrder.length;
+
+    if (finishersCount === 1) {
+      // Only one player completed - they win immediately!
+      const winnerId = tierState.finishOrder[0].playerId;
       const winnerStats = tierState.cumulativeStats.get(winnerId);
+      const winnerPlayer = lobby.players.find(p => p.id === winnerId);
+
       if (winnerStats) {
-        // Trigger game over early
+        // Update winner's completed rounds
+        winnerStats.completedRounds = (winnerStats.completedRounds || 0) + 1;
+        winnerStats.totalWpm = (winnerStats.totalWpm || 0) + (tierState.finishOrder[0].wpm || 0);
+        winnerStats.totalPrecision = (winnerStats.totalPrecision || 0) + (tierState.finishOrder[0].accuracy || 0);
+
         const winner = {
           playerId: winnerId,
           playerName: winnerStats.playerName,
-          avgWpm: Math.round(winnerStats.totalWpm / (winnerStats.completedRounds || 1)),
-          avgPrecision: Math.round(winnerStats.totalPrecision / (winnerStats.completedRounds || 1)),
+          avatarUrl: winnerPlayer?.avatarUrl,
+          theme: winnerPlayer?.theme,
+          avgWpm: Math.round(winnerStats.totalWpm / winnerStats.completedRounds),
+          avgPrecision: Math.round(winnerStats.totalPrecision / winnerStats.completedRounds),
           totalPenaltyTime: winnerStats.totalPenaltyTime,
+          completedRounds: winnerStats.completedRounds,
           isEliminated: false
         };
 
@@ -1152,17 +1296,19 @@ io.on('connection', (socket) => {
               playerName: stats.playerName,
               avatarUrl: player?.avatarUrl,
               theme: player?.theme,
-              completedRounds: stats.completedRounds,
+              completedRounds: stats.completedRounds || 0,
               avgWpm: stats.completedRounds > 0 ? Math.round(stats.totalWpm / stats.completedRounds) : 0,
               avgAccuracy: stats.completedRounds > 0 ? Math.round(stats.totalPrecision / stats.completedRounds) : 0,
               totalPenaltyTime: stats.totalPenaltyTime,
               bestWpm: stats.bestWpm,
               chances: stats.chances,
-              isEliminated: stats.isEliminated
+              isEliminated: playerId !== winnerId // Everyone except winner is "eliminated" (lost)
             };
           })
           .sort((a, b) => {
-            // Sort by: most rounds completed, then best avgWpm
+            // Winner first, then by completed rounds, then by avgWpm
+            if (a.playerId === winnerId) return -1;
+            if (b.playerId === winnerId) return 1;
             if (a.completedRounds !== b.completedRounds) {
               return b.completedRounds - a.completedRounds;
             }
@@ -1172,16 +1318,24 @@ io.on('connection', (socket) => {
         io.to(roomId).emit('tier_game_complete', {
           leaderboard,
           winner,
+          roundResults, // Include the round results so client can show what happened
           totalRounds: currentRound + 1,
-          reason: 'last_standing'
+          reason: 'single_finisher'
         });
 
         // Reset game state
         lobby.gameInProgress = false;
         delete lobby.tierState;
+
+        console.log(`Tier game ended in ${lobby.name} - Single finisher wins: ${winner.playerName}`);
         return;
       }
     }
+
+    // RULE: If NO player finishes in Easy/Medium mode, continue to next round
+    // (already handled in tier_player_failed)
+
+    // RULE: In Hard mode, the normal elimination rules apply
 
     // Build leaderboard from cumulative stats
     const leaderboard = Array.from(tierState.cumulativeStats.entries())
@@ -1228,10 +1382,27 @@ io.on('connection', (socket) => {
 
     // Game ends if: last round, only 1 player left, or no players left
     if (isLastRound || onlyOnePlayerLeft || noPlayersLeft) {
-      // Check for draw condition - if ALL players have 0 completed rounds, it's a draw
+      // Check for draw condition for tier mode at the very end:
+      // 1. All players have 0 completed rounds (no one finished any)
+      // 2. Top non-eliminated players have equal rounds completed AND equal avgWpm
       const allPlayersZeroRounds = leaderboard.every(p => p.completedRounds === 0);
       const allPlayersZeroWpm = leaderboard.every(p => p.avgWpm === 0);
-      const isDraw = allPlayersZeroRounds && allPlayersZeroWpm;
+
+      // Check if top players (non-eliminated) are tied
+      const nonEliminatedPlayers = leaderboard.filter(p => !p.isEliminated);
+      let isDraw = allPlayersZeroRounds && allPlayersZeroWpm;
+
+      // Additional draw check: if 2+ non-eliminated players have same completedRounds AND avgWpm
+      if (!isDraw && nonEliminatedPlayers.length >= 2 && isLastRound) {
+        const topPlayer = nonEliminatedPlayers[0];
+        const secondPlayer = nonEliminatedPlayers[1];
+
+        // Draw if same completed rounds AND same average WPM
+        if (topPlayer.completedRounds === secondPlayer.completedRounds &&
+          topPlayer.avgWpm === secondPlayer.avgWpm) {
+          isDraw = true;
+        }
+      }
 
       // Game over - emit final results
       // If it's a draw, winner is null
@@ -1295,6 +1466,7 @@ io.on('connection', (socket) => {
     tierState.roundResults = [];
     tierState.readyForNextRound.clear();
     tierState.failedThisRound.clear();
+    tierState.playerProgress.clear(); // Clear progress tracking for new round
 
     // Get new paragraph for this round
     const paragraphText = getParagraphForRound(tierState, newRound);
@@ -1448,51 +1620,81 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Player returns to lobby from game (eliminated player)
+  // Player returns to lobby from game (eliminated player or after game ends)
   socket.on('return_to_lobby', ({ roomId }) => {
     const lobby = lobbies.get(roomId);
-    if (!lobby) return;
+    if (!lobby) {
+      // Lobby doesn't exist - send error so client can handle appropriately
+      socket.emit('lobby_error', { message: 'Lobby no longer exists' });
+      return;
+    }
 
-    const player = lobby.players.find(p => p.id === socket.id);
-    if (player) {
-      player.inGame = false;
+    let player = lobby.players.find(p => p.id === socket.id);
 
-      // Host stays ready, non-host players need to ready up again
-      const isHost = player.id === lobby.hostId;
-      player.isReady = isHost; // Host is always ready, others are not
+    // If player not found, check if they need to be re-added (socket reconnection)
+    if (!player) {
+      // Player might have been removed - try to re-add them if lobby isn't full
+      if (lobby.players.length < lobby.maxPlayers) {
+        // Cannot re-add without player data - send error
+        socket.emit('lobby_error', { message: 'You are no longer in this lobby' });
+        return;
+      } else {
+        socket.emit('lobby_error', { message: 'Lobby is full' });
+        return;
+      }
+    }
 
-      // Notify all players about this player's status change
-      io.to(roomId).emit('player_status_update', {
-        playerId: socket.id,
-        playerName: player.name,
-        inGame: false,
-        isReady: player.isReady
+    // Ensure player is in the socket room
+    socket.join(roomId);
+
+    player.inGame = false;
+
+    // Host stays ready, non-host players need to ready up again
+    const isHost = player.id === lobby.hostId;
+    player.isReady = isHost; // Host is always ready, others are not
+    player.status = 'waiting';
+
+    console.log(`${player.name} returned to lobby in ${lobby.name}`);
+
+    // IMMEDIATELY send game_reset to THIS player so they see the lobby
+    // Don't wait for other players - each player can return independently
+    socket.emit('game_reset', {
+      players: lobby.players,
+      message: 'Returned to lobby!'
+    });
+
+    // Notify all players about this player's status change
+    io.to(roomId).emit('player_status_update', {
+      playerId: socket.id,
+      playerName: player.name,
+      inGame: false,
+      isReady: player.isReady
+    });
+
+    // Check if all players have returned to lobby
+    const allPlayersInLobby = lobby.players.every(p => !p.inGame);
+    const gameNeedsReset = lobby.gameInProgress || lobby.tierState;
+
+    if (allPlayersInLobby && gameNeedsReset) {
+      // All players are back in lobby - reset game state for new game
+      lobby.gameInProgress = false;
+      lobby.tierState = null;
+      lobby.completedPlayers = new Map(); // Reset random mode completed tracking
+
+      // Reset all player ready states (host stays ready)
+      lobby.players.forEach(p => {
+        p.status = 'waiting';
+        p.isReady = p.id === lobby.hostId;
+        p.inGame = false;
       });
 
-      console.log(`${player.name} returned to lobby in ${lobby.name}`);
+      // Notify ALL players that game has been fully reset and they can ready up again
+      io.to(roomId).emit('game_reset', {
+        players: lobby.players,
+        message: 'Game ended. Ready up to play again!'
+      });
 
-      // Check if all players have returned to lobby
-      const allPlayersInLobby = lobby.players.every(p => !p.inGame);
-
-      if (allPlayersInLobby && lobby.gameInProgress) {
-        // All players are back in lobby - reset game state for new game
-        lobby.gameInProgress = false;
-        lobby.tierState = null;
-
-        // Reset all player ready states (host stays ready)
-        lobby.players.forEach(p => {
-          p.status = 'waiting';
-          p.isReady = p.id === lobby.hostId;
-        });
-
-        // Notify all players that game has reset and they can ready up again
-        io.to(roomId).emit('game_reset', {
-          players: lobby.players,
-          message: 'Game ended. Ready up to play again!'
-        });
-
-        console.log(`Game reset in lobby ${lobby.name} - ready for new game`);
-      }
+      console.log(`Game reset in lobby ${lobby.name} - ready for new game`);
     }
   });
 
@@ -1605,6 +1807,61 @@ io.on('connection', (socket) => {
             lobby.gameInProgress = false;
             delete lobby.tierState;
             console.log(`Tier game ended in ${lobby.name} - opponent left`);
+          }
+
+          // For random mode: Check if all remaining active players have finished
+          if ((lobby.mode === 'random' || !lobby.mode) && lobby.completedPlayers) {
+            const activePlayers = lobby.players.filter(p => !p.disconnected);
+            const allActiveFinished = activePlayers.length > 0 &&
+              activePlayers.every(p => lobby.completedPlayers.has(p.id));
+
+            if (allActiveFinished) {
+              console.log('[DEBUG] Player disconnected - all remaining players finished, emitting game_over');
+
+              // Build standings from completed players
+              const standings = Array.from(lobby.completedPlayers.values())
+                .sort((a, b) => a.position - b.position);
+
+              // Check for draw
+              let isDraw = false;
+              let tiedPlayers = [standings[0]];
+              if (standings.length > 1) {
+                const topWpm = standings[0]?.wpm || 0;
+                for (let i = 1; i < standings.length; i++) {
+                  if (standings[i]?.wpm === topWpm) {
+                    tiedPlayers.push(standings[i]);
+                  } else break;
+                }
+                isDraw = tiedPlayers.length > 1;
+              }
+
+              // Build scores
+              if (!lobby.gameScores) {
+                lobby.gameScores = new Map();
+                lobby.players.forEach(p => lobby.gameScores.set(p.id, 0));
+              }
+
+              if (!isDraw && standings[0]) {
+                const currentScore = lobby.gameScores.get(standings[0].playerId) || 0;
+                lobby.gameScores.set(standings[0].playerId, currentScore + 1);
+              }
+
+              const scores = {};
+              lobby.gameScores.forEach((score, playerId) => {
+                scores[playerId] = score;
+              });
+
+              io.to(roomId).emit('game_over', {
+                standings,
+                winner: isDraw ? null : standings[0],
+                isDraw,
+                tiedPlayers: isDraw ? tiedPlayers.map(p => p.playerId) : [],
+                scores
+              });
+
+              lobby.completedPlayers = new Map();
+              lobby.gameInProgress = false;
+            }
           }
         } else {
           io.to(roomId).emit('player_left', { playerId: socket.id });

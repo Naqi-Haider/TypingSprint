@@ -79,7 +79,8 @@ const MultiplayerGame = ({
   const [readyPlayersCount, setReadyPlayersCount] = useState(0);
   const [activePlayers, setActivePlayers] = useState([]); // Players still in game
   const [failedThisRound, setFailedThisRound] = useState(false); // Did I fail this round
-  const [eliminatedPlayers, setEliminatedPlayers] = useState([]); // Track eliminated player IDs
+  const [eliminatedPlayers, setEliminatedPlayers] = useState([]); // Track eliminated player IDs (Hard rounds only)
+  const [failedPlayersThisRound, setFailedPlayersThisRound] = useState([]); // Track players who failed this round (Easy/Medium)
   const [eliminatedCountdown, setEliminatedCountdown] = useState(10); // Countdown for eliminated players
 
   // Final result countdown
@@ -111,6 +112,7 @@ const MultiplayerGame = ({
   const [gameScores, setGameScores] = useState({}); // { playerId: score } - session scores from server
   const [roundNumber, setRoundNumber] = useState(1);
   const [finalPositions, setFinalPositions] = useState([]); // Array of { playerId, position, wpm, accuracy, progress }
+  const [tiedPlayerIds, setTiedPlayerIds] = useState([]); // Array of player IDs who are tied (for draw display)
 
   // Dynamic paragraph state for Go Again
   const [dynamicParagraph, setDynamicParagraph] = useState(null);
@@ -200,7 +202,7 @@ const MultiplayerGame = ({
     };
 
     // Listen for game_over (all players finished or time up - Random mode)
-    const handleGameOver = ({ standings, winner, isDraw, scores }) => {
+    const handleGameOver = ({ standings, winner, isDraw, scores, tiedPlayers }) => {
       if (mode === 'random' || !mode) {
         // Finalize results - prevent late updates
         resultFinalizedRef.current = true;
@@ -215,6 +217,11 @@ const MultiplayerGame = ({
         // Store scores for display
         if (scores) {
           setGameScores(scores);
+        }
+
+        // Store tied players for draw display
+        if (tiedPlayers && tiedPlayers.length > 0) {
+          setTiedPlayerIds(tiedPlayers);
         }
 
         // Set result state
@@ -264,6 +271,7 @@ const MultiplayerGame = ({
         if (isLastRound) {
           // Final round - show game over with detailed results
           setTierGameEnded(true);
+          setFinalResultCountdown(5); // Reset the countdown for auto-return to lobby
           setTierFinalStats({
             myStats: {
               avgWpm: cumulativeStats.roundsPlayed > 0
@@ -332,6 +340,7 @@ const MultiplayerGame = ({
         const oppLeaderboardEntry = leaderboard?.find(l => l.playerId !== currentPlayer?.id);
 
         setTierGameEnded(true);
+        setFinalResultCountdown(5); // Reset the countdown for auto-return to lobby
         setTierFinalStats({
           myStats: {
             avgWpm: myLeaderboardEntry?.avgWpm || Math.round(cumulativeStats.totalWpm / Math.max(cumulativeStats.roundsPlayed, 1)),
@@ -370,6 +379,7 @@ const MultiplayerGame = ({
       if (mode === 'tier' && playerId !== currentPlayer?.id) {
         // Opponent clicked "Finish Game" - show detailed results to both
         setTierGameEnded(true);
+        setFinalResultCountdown(5); // Reset the countdown for auto-return to lobby
         setTierFinalStats({
           myStats: {
             avgWpm: Math.round(cumulativeStats.totalWpm / Math.max(cumulativeStats.roundsPlayed, 1)),
@@ -406,10 +416,10 @@ const MultiplayerGame = ({
       }
     };
 
-    // Handle player eliminated
-    const handlePlayerEliminated = ({ playerId, playerName, reason }) => {
+    // Handle player eliminated (Hard rounds only - true elimination)
+    const handlePlayerEliminated = ({ playerId, playerName, reason, isEliminated }) => {
       if (mode === 'tier') {
-        console.log(`Player ${playerName} was eliminated`);
+        console.log(`Player ${playerName} was ELIMINATED (Hard round)`);
 
         // Track eliminated player ID
         setEliminatedPlayers(prev => [...prev, playerId]);
@@ -426,6 +436,31 @@ const MultiplayerGame = ({
             ...prev[playerId],
             isEliminated: true,
             reason
+          }
+        }));
+      }
+    };
+
+    // Handle player failed round (Easy/Medium rounds - NOT eliminated, continues to next round)
+    const handlePlayerFailedRound = ({ playerId, playerName, roundIndex, difficulty }) => {
+      if (mode === 'tier') {
+        console.log(`Player ${playerName} FAILED round ${roundIndex} (${difficulty}) - continues to next round`);
+
+        // Track as failed this round (NOT eliminated)
+        setFailedPlayersThisRound(prev => [...prev, playerId]);
+
+        // If it's me, mark as failed this round
+        if (playerId === socket?.id) {
+          setFailedThisRound(true);
+        }
+
+        // Update opponent progress to show failed (not eliminated)
+        setOpponentProgress(prev => ({
+          ...prev,
+          [playerId]: {
+            ...prev[playerId],
+            failedRound: true,
+            isEliminated: false
           }
         }));
       }
@@ -453,6 +488,7 @@ const MultiplayerGame = ({
     socket.on('waiting_for_ready', handleWaitingForReady);
     socket.on('player_ready_next_round', handlePlayerReadyNextRound);
     socket.on('player_eliminated', handlePlayerEliminated);
+    socket.on('player_failed_round', handlePlayerFailedRound);
     socket.on('player_used_chance', handlePlayerUsedChance);
 
     // Listen for player disconnect during gameplay
@@ -493,6 +529,7 @@ const MultiplayerGame = ({
       socket.off('waiting_for_ready', handleWaitingForReady);
       socket.off('player_ready_next_round', handlePlayerReadyNextRound);
       socket.off('player_eliminated', handlePlayerEliminated);
+      socket.off('player_failed_round', handlePlayerFailedRound);
       socket.off('player_used_chance', handlePlayerUsedChance);
     };
   }, [socket, currentPlayer?.id, timeLimit, completionTime, disconnectedPlayer?.id, mode]);
@@ -523,10 +560,12 @@ const MultiplayerGame = ({
     setIsReadyForNextRound(false);
     setReadyPlayersCount(0);
     setFailedThisRound(false);
+    setFailedPlayersThisRound([]); // Reset failed players for new round (Easy/Medium failures)
     setFinishOrder(null);
     setRoundResults([]);
     setIntermissionCountdown(INTERMISSION_DURATION);
     setPenaltyTimeUsed(0); // Reset penalty time for new round
+    setTiedPlayerIds([]); // Reset tied players for new round
   }, [timeLimit]);
 
   const handleReadyForNextRound = useCallback(() => {
@@ -567,13 +606,7 @@ const MultiplayerGame = ({
       await refreshCurrentUser();
     }
 
-    // For Tier Mode final results, navigate to Main Page instead of Lobby
-    if (mode === 'tier' && tierGameEnded) {
-      navigate('/');
-      return;
-    }
-
-    // Use onReturnToLobby to go back to lobby view without leaving room
+    // Use onReturnToLobby to go back to lobby view (works for both regular and tier mode final results)
     if (onReturnToLobby) {
       onReturnToLobby();
     } else if (onLeave) {
@@ -583,7 +616,7 @@ const MultiplayerGame = ({
       // Last fallback: navigate to home
       navigate('/');
     }
-  }, [onReturnToLobby, onLeave, navigate, refreshCurrentUser, mode, tierGameEnded]);
+  }, [onReturnToLobby, onLeave, navigate, refreshCurrentUser]);
 
   // Handle "Quit Game" button click in tier mode (give up remaining chances)
   const handleQuitTierGame = useCallback(() => {
@@ -629,6 +662,7 @@ const MultiplayerGame = ({
 
     // Show detailed results locally
     setTierGameEnded(true);
+    setFinalResultCountdown(5); // Reset the countdown for auto-return to lobby
     setTierFinalStats({
       myStats: finalStats,
       oppStats: null, // Will show opponent's current stats
@@ -764,16 +798,43 @@ const MultiplayerGame = ({
                 });
               }
 
+              // Don't set gamePhase to finished - wait for round_ended from server
               return isHardMode ? -20 : 0;
             }
 
-            setGamePhase('finished');
-            onComplete?.({
-              progress: calculateProgress(),
-              wpm: calculateWPM(),
-              precision: calculateAccuracy(), // rename for callback
-              time: timeLimit
-            });
+            // Random mode or non-tier - emit timeout to server
+            if (socket && roomId && (mode === 'random' || !mode)) {
+              const currentProgress = calculateProgress();
+              const currentWpm = calculateWPM();
+              const currentAccuracy = calculateAccuracy();
+
+              // Mark as completed (timed out) - prevents further typing
+              setIsRoundComplete(true);
+
+              // Emit typing_progress with completed flag so server can finalize
+              socket.emit('typing_progress', {
+                roomId,
+                progress: currentProgress,
+                wpm: currentWpm,
+                accuracy: currentAccuracy,
+                completed: true, // Mark as completed (timed out = finished with current progress)
+                completionTime: timeLimit, // Max time in seconds
+                timedOut: true // Flag to indicate timeout
+              });
+            }
+
+            // For single-player or non-socket mode
+            if (!socket || !roomId) {
+              setGamePhase('finished');
+              onComplete?.({
+                progress: calculateProgress(),
+                wpm: calculateWPM(),
+                precision: calculateAccuracy(),
+                time: timeLimit
+              });
+            }
+
+            // For random mode, wait for game_over from server
             return 0;
           }
 
@@ -811,7 +872,8 @@ const MultiplayerGame = ({
 
   // Handle input change
   const handleInputChange = (e) => {
-    if (gamePhase !== 'playing') return;
+    // Prevent input if game not playing or round already complete
+    if (gamePhase !== 'playing' || isRoundComplete) return;
 
     const value = e.target.value;
     const prevLength = typedText.length;
@@ -933,10 +995,13 @@ const MultiplayerGame = ({
         // Don't end game or show intermission here - wait for server's round_ended event
         // This allows other players to finish
       } else {
-        // Random mode - game finished, I won!
-        setMyScore(prev => prev + 1);
-        setGamePhase('finished');
+        // Random mode - player completed, but wait for server's game_over event
+        // Don't set gamePhase here - server will emit game_over when all players finish
+
+        // Mark as completed - shows "Finished" and prevents further input
+        setIsRoundComplete(true);
         clearInterval(timerRef.current);
+
         onComplete?.({
           progress: 100,
           wpm: calculateWPM(),
@@ -980,7 +1045,7 @@ const MultiplayerGame = ({
           <span
             className={`word ${isCurrentWord ? 'current' : ''} ${isPastWord ? 'past' : ''}`}
             style={isCurrentWord ? {
-              '--underline-color': PLAYER_THEMES[currentPlayer?.theme]?.primary || PLAYER_THEMES.green.primary
+              '--underline-color': (currentPlayer?.theme && PLAYER_THEMES[currentPlayer.theme]?.primary) || PLAYER_THEMES.green?.primary || '#22c55e'
             } : {}}
           >
             {chars}
@@ -1012,7 +1077,7 @@ const MultiplayerGame = ({
   const opponent = opponents[0]; // Primary opponent for backwards compatibility
   const opponentData = opponent ? opponentProgress[opponent.id] : null;
 
-  // Get all players' progress data for the sidebar (include eliminated players with flag)
+  // Get all players' progress data for the sidebar (include eliminated and failed players with flags)
   const allPlayersData = players
     .map(p => ({
       ...p,
@@ -1021,7 +1086,9 @@ const MultiplayerGame = ({
       wpm: p.id === currentPlayer?.id ? calculateWPM() : (opponentProgress[p.id]?.wpm || 0),
       completed: p.id === currentPlayer?.id ? isRoundComplete : (opponentProgress[p.id]?.completed || false),
       completionTime: p.id === currentPlayer?.id ? completionTime : (opponentProgress[p.id]?.completionTime || null),
-      eliminated: eliminatedPlayers.includes(p.id) // Mark eliminated instead of filtering
+      // Check both state arrays AND opponentProgress for elimination/failure status
+      eliminated: eliminatedPlayers.includes(p.id) || opponentProgress[p.id]?.isEliminated || false,
+      failedRound: failedPlayersThisRound.includes(p.id) || opponentProgress[p.id]?.failedRound || (p.id === currentPlayer?.id && failedThisRound)
     }));
 
   // Debug: Log player data before sorting
@@ -1176,8 +1243,26 @@ const MultiplayerGame = ({
                       <span className="progress-wpm">{player.wpm} WPM</span>
                     </div>
 
-                    {/* Show progress bar OR position badge based on finish status */}
-                    {isFinished ? (
+                    {/* Show progress bar OR position badge OR eliminated/failed text based on status */}
+                    {player.eliminated ? (
+                      <div className="progress-bar-track eliminated-track">
+                        <div className="eliminated-text-overlay">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z" />
+                          </svg>
+                          <span>ELIMINATED</span>
+                        </div>
+                      </div>
+                    ) : player.failedRound ? (
+                      <div className="progress-bar-track failed-track">
+                        <div className="failed-text-overlay">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+                          </svg>
+                          <span>FAILED</span>
+                        </div>
+                      </div>
+                    ) : isFinished ? (
                       <motion.div
                         className="finish-position-badge position-display-font"
                         style={{ '--player-color': playerTheme.primary }}
@@ -1319,6 +1404,28 @@ const MultiplayerGame = ({
                 {roundResults.map((result, idx) => {
                   const playerData = players.find(p => p.id === result.playerId);
                   const playerTheme = PLAYER_THEMES[playerData?.theme] || PLAYER_THEMES[Object.keys(PLAYER_THEMES)[idx]] || PLAYER_THEMES.green;
+
+                  // Determine status text and class
+                  let statusText = 'PASSED';
+                  let statusClass = 'passed';
+
+                  if (result.isEliminated) {
+                    statusText = 'ELIMINATED';
+                    statusClass = 'eliminated';
+                  } else if (result.dnf || (result.failed && result.progress > 0)) {
+                    // DNF - had progress but didn't finish
+                    statusText = `DNF (${Math.round(result.progress || 0)}%)`;
+                    statusClass = 'dnf';
+                  } else if (result.incomplete) {
+                    // Player was in progress but didn't finish
+                    statusText = `DNF (${Math.round(result.progress || 0)}%)`;
+                    statusClass = 'dnf';
+                  } else if (result.failed) {
+                    // Completely failed (0 progress)
+                    statusText = 'FAILED';
+                    statusClass = 'failed';
+                  }
+
                   return (
                     <div key={result.playerId} className={`lb-row ${result.playerId === currentPlayer?.id ? 'me' : ''}`}>
                       <span className="lb-rank">#{result.position || idx + 1}</span>
@@ -1332,9 +1439,9 @@ const MultiplayerGame = ({
                         </span>
                         <span className="lb-name">{result.playerName}</span>
                       </span>
-                      <span className="lb-wpm">{result.failed ? '--' : result.wpm}</span>
-                      <span className={`lb-status ${result.failed ? 'failed' : 'passed'}`}>
-                        {result.isEliminated ? 'ELIMINATED' : result.failed ? 'FAILED' : 'PASSED'}
+                      <span className="lb-wpm">{(result.failed && !result.incomplete) ? '--' : result.wpm}</span>
+                      <span className={`lb-status ${statusClass}`}>
+                        {statusText}
                       </span>
                     </div>
                   );
@@ -1646,22 +1753,30 @@ const MultiplayerGame = ({
                       </div>
                       {leaderboard.map((player, idx) => {
                         const playerTheme = PLAYER_THEMES[player.theme] || PLAYER_THEMES[Object.keys(PLAYER_THEMES)[idx]] || PLAYER_THEMES.retro;
+                        const isPlayerTied = tiedPlayerIds.includes(player.id);
+                        const isWinnerOrTied = idx === 0 || isPlayerTied;
                         return (
                           <motion.div
                             key={player.id}
-                            className={`leaderboard-row ${player.isMe ? 'you' : ''} ${idx === 0 ? 'winner' : ''}`}
+                            className={`leaderboard-row ${player.isMe ? 'you' : ''} ${isWinnerOrTied ? 'winner' : ''} ${isPlayerTied ? 'tied' : ''}`}
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: idx * 0.1 }}
                           >
                             <span className="lb-col rank">
-                              <span className="position-num position-display-font" style={{ '--pos-color': positionColors[idx] || '#64748b' }}>
-                                {idx === 0 && (
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                                  </svg>
+                              <span className="position-num position-display-font" style={{ '--pos-color': isPlayerTied ? '#64748b' : positionColors[idx] || '#64748b' }}>
+                                {isPlayerTied ? (
+                                  <span className="draw-badge">DRAW</span>
+                                ) : (
+                                  <>
+                                    {idx === 0 && (
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                                      </svg>
+                                    )}
+                                    {positionLabels[idx] || `${idx + 1}th`}
+                                  </>
                                 )}
-                                {positionLabels[idx] || `${idx + 1}th`}
                               </span>
                             </span>
                             <span className="lb-col player">
@@ -1678,7 +1793,7 @@ const MultiplayerGame = ({
                             <span className="lb-col wpm">{player.wpm || 0}</span>
                             <span className="lb-col acc">{typeof player.accuracy === 'number' ? `${player.accuracy}%` : '--'}</span>
                             <span className="lb-col score">
-                              <span className="score-badge">{gameScores[player.id] || 0}</span>
+                              <span className={`score-badge ${isPlayerTied ? 'tied' : ''}`}>{gameScores[player.id] || 0}</span>
                             </span>
                           </motion.div>
                         );
