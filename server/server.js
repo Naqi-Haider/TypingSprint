@@ -830,6 +830,16 @@ io.on('connection', (socket) => {
             s.position = idx + 1;
           });
 
+          // Debug log to trace ranking
+          console.log('[DEBUG] Final standings:', standings.map(s => ({
+            name: s.playerName,
+            wpm: s.wpm,
+            time: s.completionTime,
+            timedOut: s.timedOut,
+            progress: s.progress,
+            position: s.position
+          })));
+
           // Detect draw conditions (only among valid finishers):
           const finishers = standings.filter(s => isValidFinish(s));
           const allIdle = standings.every(s => (s.progress || 0) === 0);
