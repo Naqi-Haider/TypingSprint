@@ -9,7 +9,7 @@ import keyboardSakura from '../assets/keyboard (6).svg';
 import keyboardPaper from '../assets/keyboard (7).svg';
 import { NavbarAuth } from './AuthSystem';
 
-const Navbar = memo(({ onLogoClick, onMultiplayerClick }) => {
+const Navbar = memo(({ onLogoClick }) => {
   const [currentIcon, setCurrentIcon] = useState(keyboardIcon);
 
   // Memoize theme icons map
@@ -66,16 +66,9 @@ const Navbar = memo(({ onLogoClick, onMultiplayerClick }) => {
   return (
     <nav className="navbar glass">
       <div className="navbar-content">
-        <div className="navbar-left">
-          <div className="logo" onClick={onLogoClick} style={{ cursor: 'pointer' }}>
-            <img src={currentIcon} alt="Keyboard" className="logo-icon" />
-            <AnimatedLogo />
-          </div>
-          <div className="nav-links">
-            <button className="nav-link-btn" onClick={onMultiplayerClick}>
-              Multiplayer
-            </button>
-          </div>
+        <div className="logo" onClick={onLogoClick} style={{ cursor: 'pointer' }}>
+          <img src={currentIcon} alt="Keyboard" className="logo-icon" />
+          <AnimatedLogo />
         </div>
         <NavbarAuth />
       </div>

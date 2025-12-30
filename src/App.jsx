@@ -78,23 +78,6 @@ function AppContent() {
     setCurrentView('loading');
   }, []);
 
-  const handleMultiplayerClick = useCallback(() => {
-    if (currentView !== 'home') {
-      setCurrentView('home');
-      setIsLoading(false);
-      setIsGameReady(false);
-      navigate('/');
-      // Delay to ensure HomePage is rendered before scrolling
-      setTimeout(() => {
-        const el = document.getElementById('multiplayer-section');
-        if (el) el.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-    } else {
-      const el = document.getElementById('multiplayer-section');
-      if (el) el.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [currentView, navigate]);
-
   const handleLoadingComplete = useCallback(() => {
     setIsLoading(false);
     setIsGameReady(true);
@@ -108,7 +91,7 @@ function AppContent() {
     <div className={`app-wrapper ${themeClass}`}>
       <AuthModal />
       <div className="app">
-        <Navbar onLogoClick={handleLogoClick} onMultiplayerClick={handleMultiplayerClick} />
+        <Navbar onLogoClick={handleLogoClick} />
         <main className="main-content">
           <Routes>
             <Route path="/" element={

@@ -949,10 +949,8 @@ const MultiplayerGame = ({
     // Check if completed current paragraph
     if (value === activeText) {
       const finishTime = Date.now();
+      const elapsedSeconds = startTimeRef.current ? Math.round((finishTime - startTimeRef.current) / 1000) : timeLimit - timeRemaining;
       setCompletionTime(elapsedSeconds);
-
-      // NO Math.round here for high precision in ties
-      const preciseTime = startTimeRef.current ? (finishTime - startTimeRef.current) / 1000 : timeLimit - timeRemaining;
 
       // Emit completion to other players
       if (socket && roomId) {
@@ -962,7 +960,7 @@ const MultiplayerGame = ({
           wpm: calculateWPM(),
           accuracy: calculateAccuracy(),
           completed: true,
-          completionTime: preciseTime
+          completionTime: elapsedSeconds
         });
       }
 
@@ -1008,7 +1006,7 @@ const MultiplayerGame = ({
           progress: 100,
           wpm: calculateWPM(),
           precision: calculateAccuracy(),
-          time: preciseTime
+          time: elapsedSeconds
         });
       }
     }
@@ -1650,14 +1648,14 @@ const MultiplayerGame = ({
                   transition={{ type: 'spring' }}
                 >
                   {/* Result Banner - Your Position */}
-                  <div className={`result-banner ${(result === 'draw' || tierFinalStats?.isDraw) ? 'draw' : `position-${myPosition}`}`}>
+                  <div className={`result-banner ${tierFinalStats?.isDraw ? 'draw' : `position-${myPosition}`}`}>
                     <div className="banner-header">
-                      <span className="position-badge" style={{ '--pos-color': (result === 'draw' || tierFinalStats?.isDraw) ? '#64748b' : positionColors[myPosition - 1] }}>
-                        {(result === 'draw' || tierFinalStats?.isDraw) ? 'DRAW' : (positionLabels[myPosition - 1] || `${myPosition}th`)}
+                      <span className="position-badge" style={{ '--pos-color': tierFinalStats?.isDraw ? '#64748b' : positionColors[myPosition - 1] }}>
+                        {tierFinalStats?.isDraw ? 'DRAW' : (positionLabels[myPosition - 1] || `${myPosition}th`)}
                       </span>
                     </div>
                     <span className="result-text">
-                      {(result === 'draw' || tierFinalStats?.isDraw) ? 'NO WINNER!' : (myPosition === 1 ? 'VICTORY!' : myPosition === 2 ? 'CLOSE ONE!' : myPosition === 3 ? 'GOOD TRY!' : 'KEEP PRACTICING!')}
+                      {tierFinalStats?.isDraw ? 'NO WINNER!' : (myPosition === 1 ? 'VICTORY!' : myPosition === 2 ? 'CLOSE ONE!' : myPosition === 3 ? 'GOOD TRY!' : 'KEEP PRACTICING!')}
                     </span>
                     <div className="my-stats-row">
                       <span className="my-stat">{myStats?.wpm || 0} WPM</span>
@@ -1680,7 +1678,7 @@ const MultiplayerGame = ({
                         {leaderboard.map((player, idx) => {
                           const playerTheme = PLAYER_THEMES[player.theme] || PLAYER_THEMES[Object.keys(PLAYER_THEMES)[idx]] || PLAYER_THEMES.retro;
                           // No winner in draw scenario
-                          const isWinner = !(result === 'draw' || tierFinalStats?.isDraw) && idx === 0 && !player.isEliminated;
+                          const isWinner = !tierFinalStats?.isDraw && idx === 0 && !player.isEliminated;
                           return (
                             <motion.div
                               key={player.id}

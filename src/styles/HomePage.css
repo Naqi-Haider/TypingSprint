@@ -91,9 +91,6 @@
 
 .hero-cta-wrapper {
   margin-top: var(--spacing-sm);
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-sm);
 }
 
 .hero-description {
@@ -142,6 +139,7 @@
   background: transparent;
   color: var(--primary);
   border: 2px solid var(--primary);
+  margin-left: var(--spacing-sm);
 }
 
 .cta-button.secondary:hover {
