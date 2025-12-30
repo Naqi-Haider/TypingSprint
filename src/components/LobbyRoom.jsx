@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { io } from 'socket.io-client';
 import MultiplayerGame from './MultiplayerGame';
+import GameModal from './GameModal';
 import './LobbyRoom.css';
 
 // Theme class mapping
@@ -89,6 +90,15 @@ const LobbyRoom = ({
   const [actualGameMode, setActualGameMode] = useState(gameMode || 'random'); // Track actual game mode
   const [allPlayersReady, setAllPlayersReady] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState(null); // For Profile Modal
+
+  // GameModal states
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: '',
+    buttons: []
+  });
 
   // Initialize socket connection and join lobby
   useEffect(() => {
@@ -222,8 +232,17 @@ const LobbyRoom = ({
     // Listen for lobby closed (host left)
     newSocket.on('lobby_closed', (data) => {
       console.log('Lobby closed:', data.reason);
-      alert(data.reason || 'Lobby has been closed');
-      navigate('/');
+      setModalState({
+        isOpen: true,
+        type: 'error',
+        title: 'Lobby Closed',
+        message: data.reason || 'The lobby has been closed by the host.',
+        buttons: [{
+          text: 'OK',
+          onClick: () => navigate('/'),
+          variant: 'primary'
+        }]
+      });
     });
 
     // Listen for player ready changes
@@ -292,7 +311,12 @@ const LobbyRoom = ({
           avatarPosition: user?.avatarPosition || { x: 50, y: 50 },
           bannerPosition: user?.bannerPosition || { x: 50, y: 50 },
           mongoId: user?.id || null,
-          stats: { wpm: user?.bestWPM || 0, accuracy: 95, matchesWon: user?.stats?.matchesWon || 0 }
+          stats: {
+            wpm: user?.bestWPM || 0,
+            accuracy: user?.accuracy || 95,
+            matchesWon: user?.matchesWon || 0,
+            bestWPM: user?.bestWPM || 0
+          }
         },
         sessionToken: data?.sessionToken
       });
@@ -306,22 +330,64 @@ const LobbyRoom = ({
     // Lobby full - cannot join
     newSocket.on('lobby_full', () => {
       setIsConnecting(false);
-      alert('Lobby Room Full! This lobby has reached its maximum player capacity.');
-      navigate('/');
+      setModalState({
+        isOpen: true,
+        type: 'error',
+        title: 'Lobby Full',
+        message: 'This lobby has reached its maximum player capacity.',
+        buttons: [{
+          text: 'OK',
+          onClick: () => navigate('/'),
+          variant: 'primary'
+        }]
+      });
     });
 
     // Generic lobby error
     newSocket.on('lobby_error', (data) => {
       setIsConnecting(false);
-      alert(data?.message || 'Failed to join lobby. Please try again.');
-      navigate('/');
+      setModalState({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: data?.message || 'Failed to join lobby. Please try again.',
+        buttons: [{
+          text: 'OK',
+          onClick: () => navigate('/'),
+          variant: 'primary'
+        }]
+      });
     });
 
     // Kicked by host
     newSocket.on('kicked', (data) => {
       setIsConnecting(false);
-      alert('You were kicked by the host.');
-      navigate('/');
+      setModalState({
+        isOpen: true,
+        type: 'warning',
+        title: 'Kicked from Lobby',
+        message: 'You have been kicked from the lobby by the host.',
+        buttons: [{
+          text: 'OK',
+          onClick: () => navigate('/'),
+          variant: 'primary'
+        }]
+      });
+    });
+
+    // Settings updated notification
+    newSocket.on('settings_updated', (data) => {
+      setModalState({
+        isOpen: true,
+        type: 'info',
+        title: 'Settings Changed',
+        message: `Game mode has been changed to ${data.mode === 'tier' ? 'Tier Mode' : 'Random Mode'}.`,
+        buttons: [{
+          text: 'OK',
+          onClick: () => setModalState(prev => ({ ...prev, isOpen: false })),
+          variant: 'primary'
+        }]
+      });
     });
 
     // Cleanup on unmount
@@ -683,9 +749,27 @@ const LobbyRoom = ({
                           className="kick-btn-avatar"
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (window.confirm(`Kick ${player.name} from the lobby?`)) {
-                              handleKickPlayer(player.id);
-                            }
+                            setModalState({
+                              isOpen: true,
+                              type: 'confirm',
+                              title: 'Kick Player',
+                              message: `Are you sure you want to kick ${player.name} from the lobby?`,
+                              buttons: [
+                                {
+                                  text: 'Cancel',
+                                  onClick: () => setModalState(prev => ({ ...prev, isOpen: false })),
+                                  variant: 'secondary'
+                                },
+                                {
+                                  text: 'Kick',
+                                  onClick: () => {
+                                    handleKickPlayer(player.id);
+                                    setModalState(prev => ({ ...prev, isOpen: false }));
+                                  },
+                                  variant: 'danger'
+                                }
+                              ]
+                            });
                           }}
                           title={`Kick ${player.name}`}
                         >
@@ -1112,6 +1196,16 @@ const LobbyRoom = ({
           </div>,
           document.body
         )}
+
+      {/* GameModal for all notifications */}
+      <GameModal
+        isOpen={modalState.isOpen}
+        onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+        title={modalState.title}
+        message={modalState.message}
+        type={modalState.type}
+        buttons={modalState.buttons}
+      />
     </>
   );
 };

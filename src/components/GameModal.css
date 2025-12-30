@@ -1,0 +1,151 @@
+.game-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.game-modal {
+  max-width: 480px;
+  width: 90%;
+  padding: var(--spacing-xl);
+  background: var(--bg-panel, #1a1a1a);
+  border: 2px solid var(--primary);
+  border-radius: 24px;
+  text-align: center;
+  box-shadow: 0 0 60px rgba(var(--primary-rgb, 34, 197, 94), 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+.game-modal-icon {
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Type-specific colors */
+.game-modal-error {
+  border-color: #ef4444;
+  box-shadow: 0 0 60px rgba(239, 68, 68, 0.4);
+}
+
+.game-modal-error .game-modal-icon {
+  color: #ef4444;
+}
+
+.game-modal-success {
+  border-color: #22c55e;
+  box-shadow: 0 0 60px rgba(34, 197, 94, 0.4);
+}
+
+.game-modal-success .game-modal-icon {
+  color: #22c55e;
+}
+
+.game-modal-warning {
+  border-color: #f59e0b;
+  box-shadow: 0 0 60px rgba(245, 158, 11, 0.4);
+}
+
+.game-modal-warning .game-modal-icon {
+  color: #f59e0b;
+}
+
+.game-modal-confirm {
+  border-color: #3b82f6;
+  box-shadow: 0 0 60px rgba(59, 130, 246, 0.4);
+}
+
+.game-modal-confirm .game-modal-icon {
+  color: #3b82f6;
+}
+
+.game-modal-title {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-main, var(--text-primary));
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.game-modal-message {
+  font-family: var(--font-primary);
+  font-size: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.game-modal-buttons {
+  display: flex;
+  gap: var(--spacing-md);
+  width: 100%;
+  margin-top: var(--spacing-sm);
+}
+
+.game-modal-btn {
+  flex: 1;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: 12px;
+  font-family: var(--font-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.game-modal-btn.primary {
+  background: var(--primary);
+  color: var(--bg-color, #000);
+  border-color: var(--primary);
+}
+
+.game-modal-btn.primary:hover {
+  box-shadow: 0 0 20px rgba(var(--primary-rgb, 34, 197, 94), 0.5);
+  transform: translateY(-2px);
+}
+
+.game-modal-btn.secondary {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--text-muted);
+}
+
+.game-modal-btn.secondary:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.game-modal-btn.danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.game-modal-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+/* Animation */
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}

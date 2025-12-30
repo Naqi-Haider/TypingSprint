@@ -111,70 +111,117 @@ const cleanupLobbySessions = (roomId) => {
   lobbySessionTokens.delete(roomId);
 };
 
-// Paragraph banks for different modes (extended for more variety)
+// Paragraph banks for different modes (expanded for more variety)
 const PARAGRAPHS = {
-  random: [
-    "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. How vexingly quick daft zebras jump!",
+  // All paragraphs combined - for Random mode picks from any difficulty
+  all: [],
+  easy: [
+    "The sun rises in the east and sets in the west. Every morning brings new opportunities and challenges. We must embrace each day with enthusiasm and determination.",
+    "Reading books expands our knowledge and imagination. Stories take us to different worlds and times. Literature enriches our understanding of human nature.",
     "Technology continues to evolve at an incredible pace. New innovations emerge almost daily. These advancements shape how we live and work.",
+    "Exercise is essential for maintaining good health. Regular physical activity strengthens our bodies and minds. Even simple walks can make a significant difference.",
     "Music has the power to touch our souls. Different melodies evoke various emotions and memories. It connects people across cultures and generations.",
+    "Nature provides us with countless wonders to explore. From towering mountains to vast oceans. The natural world inspires awe and respect.",
+    "Friendship is one of life's greatest treasures. True friends support us through difficult times. They celebrate our successes and share our joys.",
     "Learning never stops throughout our entire lives. Each experience teaches us something valuable. Curiosity drives us to discover and grow.",
-    "The internet has revolutionized how we access information. Within seconds, we can find answers to almost any question.",
-    "Dreams motivate us to reach for greatness. They give us direction and purpose. Pursuing our aspirations makes life meaningful and exciting.",
-    "Friendship is one of life's greatest treasures. True friends support us through difficult times and celebrate our successes with genuine joy.",
-    "Nature provides us with countless wonders to explore. From towering mountains to vast oceans, the natural world inspires awe and respect.",
-    "Food brings people together in wonderful ways. Sharing meals creates bonds and memories that last a lifetime across generations.",
-    "Exercise is essential for maintaining good health. Regular physical activity strengthens our bodies and minds significantly.",
-    "Reading books expands our knowledge and imagination. Stories take us to different worlds and times we could never otherwise experience.",
-    "The sun rises in the east and sets in the west. Every morning brings new opportunities and challenges to embrace with enthusiasm.",
-    "Creativity allows us to express ourselves in unique ways. Art, music, and writing help us communicate our deepest thoughts.",
-    "Travel broadens our perspectives and understanding of the world. Experiencing different cultures challenges our assumptions.",
-    "Communication skills are vital in personal and professional settings. Clear expression prevents misunderstandings.",
-    "Climate change affects every corner of our planet. Rising temperatures alter weather patterns and ecosystems dramatically.",
-    "Artificial intelligence is transforming numerous industries rapidly. Machines can now perform tasks once thought impossible.",
-    "Education opens doors to countless opportunities in life. Knowledge empowers individuals to make informed decisions daily.",
-    "Mental health deserves the same attention as physical health. Stress and anxiety affect millions of people worldwide today.",
-    "Innovation drives progress in science and technology fields. Creative problem-solving leads to breakthrough discoveries."
+    "Food brings people together in wonderful ways. Sharing meals creates bonds and memories. Different cuisines reflect diverse cultural traditions.",
+    "Dreams motivate us to reach for greatness. They give us direction and purpose. Pursuing our aspirations makes life meaningful.",
+    "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. How vexingly quick daft zebras jump!",
+    "Creativity allows us to express ourselves in unique ways. Art, music, and writing help us communicate our deepest thoughts and feelings."
+  ],
+  medium: [
+    "The internet has revolutionized how we access information. Within seconds, we can find answers to almost any question. However, we must learn to distinguish reliable sources from misinformation. Critical thinking skills are more important than ever before.",
+    "Climate change affects every corner of our planet. Rising temperatures alter weather patterns and ecosystems. Scientists urge immediate action to reduce carbon emissions. Individual choices and government policies both play crucial roles. The future depends on decisions we make today.",
+    "Artificial intelligence is transforming numerous industries rapidly. Machines can now perform tasks once thought impossible. This technology offers tremendous benefits but also raises ethical questions. We must carefully consider how to develop and use AI responsibly.",
+    "Education opens doors to countless opportunities in life. Knowledge empowers individuals to make informed decisions. Schools should foster creativity alongside traditional academic skills. Lifelong learning helps us adapt to changing circumstances. Investment in education benefits entire societies.",
+    "Travel broadens our perspectives and understanding of the world. Experiencing different cultures challenges our assumptions and biases. We learn to appreciate diversity and find common ground. Every journey teaches valuable lessons about ourselves and others.",
+    "Mental health deserves the same attention as physical health. Stress and anxiety affect millions of people worldwide. Seeking help demonstrates strength rather than weakness. Society must reduce stigma surrounding mental health issues. Support systems and resources should be readily available.",
+    "Innovation drives progress in science and technology fields. Creative problem-solving leads to breakthrough discoveries and inventions. Collaboration between disciplines often produces the best results. Failure is an essential part of the innovation process.",
+    "Communication skills are vital in personal and professional settings. Clear expression of ideas prevents misunderstandings and conflicts. Active listening shows respect and builds stronger relationships. Technology offers new ways to connect across distances.",
+    "Sustainable practices protect our environment for future generations. Reducing waste and conserving resources makes a real difference. Small changes in daily habits can have significant impacts. Businesses and individuals share responsibility for environmental stewardship.",
+    "Art reflects and shapes culture throughout human history. Creative expression takes countless forms across different societies. Museums and galleries preserve important cultural heritage. Supporting artists enriches communities and inspires innovation."
+  ],
+  hard: [
+    "The exploration of space represents humanity's boldest endeavor to understand our place in the universe. Astronauts risk their lives to expand the boundaries of human knowledge and capability. Advanced telescopes reveal distant galaxies and mysterious cosmic phenomena that challenge our understanding. International cooperation in space programs demonstrates what we can achieve when nations work together. The technologies developed for space exploration often find applications in everyday life. Future missions to Mars and beyond will require unprecedented levels of innovation and determination.",
+    "Democracy requires active participation from informed and engaged citizens to function effectively. Voting in elections is just one aspect of civic responsibility in a democratic society. Understanding complex policy issues demands time and effort from busy individuals. Media literacy helps people navigate the overwhelming flood of information and misinformation. Protecting democratic institutions requires constant vigilance against threats both foreign and domestic. The health of democracy depends on respectful dialogue across political divides.",
+    "Biotechnology and genetic engineering offer revolutionary possibilities for medicine and agriculture worldwide. Scientists can now edit genes with unprecedented precision using advanced molecular tools. These capabilities raise profound ethical questions about the limits of human intervention in nature. Potential benefits include curing genetic diseases and feeding growing populations more efficiently. However, unintended consequences could affect ecosystems and future generations in unpredictable ways. Society must establish thoughtful guidelines for responsible development and application of these technologies.",
+    "Global economic systems have become increasingly interconnected through trade and financial networks. Events in one country can rapidly affect markets and economies around the world. This interdependence creates both opportunities for growth and vulnerabilities to widespread disruption. Income inequality within and between nations poses significant challenges to social stability. Sustainable economic development must balance profit with environmental protection and social welfare. The future economy will likely be shaped by automation, renewable energy, and changing demographics.",
+    "Ocean ecosystems face unprecedented threats from pollution, overfishing, and climate change impacts. Coral reefs, often called rainforests of the sea, are dying at alarming rates. Plastic waste accumulates in massive gyres that harm marine life throughout food chains. Rising ocean temperatures and acidification disrupt delicate ecological balances built over millennia. Protecting marine environments requires international cooperation and significant changes in human behavior. The health of our oceans directly affects the survival and wellbeing of all life on Earth.",
+    "Artificial intelligence systems are becoming increasingly sophisticated and capable of complex decision-making processes. Machine learning algorithms can identify patterns in vast datasets that humans might never notice. These technologies promise to revolutionize healthcare, transportation, education, and countless other fields dramatically. However, concerns about bias, privacy, and job displacement must be addressed thoughtfully and proactively. The development of artificial general intelligence could fundamentally transform human civilization in ways we cannot fully predict. Ensuring that AI benefits all of humanity requires careful planning and ethical frameworks.",
+    "Historical events shape our present circumstances in ways both obvious and subtle. Understanding the past helps us avoid repeating mistakes and build on previous successes. Different cultures and societies interpret history through their own unique perspectives and values. Primary sources provide direct evidence but must be analyzed critically for bias and context. The study of history develops critical thinking skills applicable to many areas of life. Preserving historical knowledge and artifacts ensures future generations can learn from our experiences.",
+    "Renewable energy sources offer sustainable alternatives to fossil fuels that contribute to climate change. Solar and wind power technologies have become increasingly efficient and cost-effective in recent years. Transitioning to clean energy requires massive infrastructure investments and policy changes at all levels. Energy storage solutions are crucial for managing the intermittent nature of renewable sources. The shift away from fossil fuels will create new industries and jobs while disrupting existing ones. Success in this transition will determine our ability to mitigate the worst effects of climate change."
   ],
   tier: {
-    easy: [
-      "The sun rises in the east and sets in the west. Every morning brings new opportunities.",
-      "Reading books expands our knowledge. Stories take us to different worlds.",
-      "Exercise is essential for good health. Regular activity strengthens our bodies."
-    ],
-    medium: [
-      "Climate change affects every corner of our planet. Rising temperatures alter weather patterns and ecosystems. Scientists urge immediate action to reduce carbon emissions.",
-      "Artificial intelligence is transforming numerous industries rapidly. Machines can now perform tasks once thought impossible. This technology offers tremendous benefits but also raises ethical questions.",
-      "Education opens doors to countless opportunities in life. Knowledge empowers individuals to make informed decisions. Lifelong learning helps us adapt to changing circumstances."
-    ],
-    hard: [
-      "The exploration of space represents humanity's boldest endeavor to understand our place in the universe. Astronauts risk their lives to expand the boundaries of human knowledge and capability. Advanced telescopes reveal distant galaxies and mysterious cosmic phenomena that challenge our understanding. International cooperation in space programs demonstrates what we can achieve when nations work together.",
-      "Biotechnology and genetic engineering offer revolutionary possibilities for medicine and agriculture worldwide. Scientists can now edit genes with unprecedented precision using advanced molecular tools. These capabilities raise profound ethical questions about the limits of human intervention in nature. Potential benefits include curing genetic diseases and feeding growing populations more efficiently.",
-      "Ocean ecosystems face unprecedented threats from pollution, overfishing, and climate change impacts. Coral reefs, often called rainforests of the sea, are dying at alarming rates. Plastic waste accumulates in massive gyres that harm marine life throughout food chains. Rising ocean temperatures and acidification disrupt delicate ecological balances built over millennia."
-    ]
+    easy: [],
+    medium: [],
+    hard: []
   }
 };
 
-// Track last used paragraph per lobby to avoid repetition
-const lobbyLastParagraphs = new Map();
+// Populate tier arrays from main arrays and combine all for random
+PARAGRAPHS.tier.easy = [...PARAGRAPHS.easy];
+PARAGRAPHS.tier.medium = [...PARAGRAPHS.medium];
+PARAGRAPHS.tier.hard = [...PARAGRAPHS.hard];
+PARAGRAPHS.all = [...PARAGRAPHS.easy, ...PARAGRAPHS.medium, ...PARAGRAPHS.hard];
 
-// Helper function to get paragraph based on mode (avoiding last used)
+// Track used paragraphs per lobby to avoid repetition within a session
+const lobbyUsedParagraphs = new Map();
+
+// Helper function to get paragraph based on mode (avoiding recently used)
 const getParagraphForMode = (mode, currentTier = 'easy', roomId = null) => {
-  const lastParagraph = roomId ? lobbyLastParagraphs.get(roomId) : null;
+  // Get or initialize used paragraphs set for this lobby
+  if (roomId && !lobbyUsedParagraphs.has(roomId)) {
+    lobbyUsedParagraphs.set(roomId, new Set());
+  }
+  const usedSet = roomId ? lobbyUsedParagraphs.get(roomId) : new Set();
 
+  let pool;
   if (mode === 'tier') {
-    const tierParagraphs = PARAGRAPHS.tier[currentTier] || PARAGRAPHS.tier.easy;
-    let available = tierParagraphs.filter(p => p !== lastParagraph);
-    if (available.length === 0) available = tierParagraphs;
-    const selected = available[Math.floor(Math.random() * available.length)];
-    if (roomId) lobbyLastParagraphs.set(roomId, selected);
-    return selected;
+    pool = PARAGRAPHS.tier[currentTier] || PARAGRAPHS.tier.easy;
+  } else {
+    // Random mode - use weighted probability: 40% Easy, 40% Medium, 20% Hard
+    const roll = Math.random();
+    let selectedDifficulty;
+    if (roll < 0.4) {
+      selectedDifficulty = 'easy';
+    } else if (roll < 0.8) {
+      selectedDifficulty = 'medium';
+    } else {
+      selectedDifficulty = 'hard';
+    }
+    pool = PARAGRAPHS[selectedDifficulty];
   }
 
-  // Random mode - single paragraph (avoid last used)
-  let available = PARAGRAPHS.random.filter(p => p !== lastParagraph);
-  if (available.length === 0) available = PARAGRAPHS.random;
+  // Filter out recently used paragraphs
+  let available = pool.filter(p => !usedSet.has(p));
+
+  // If all used in this difficulty, reset just that difficulty's usage
+  if (available.length === 0) {
+    // For random mode, if this difficulty is exhausted, try next difficulty
+    if (mode !== 'tier') {
+      const difficulties = ['easy', 'medium', 'hard'];
+      for (const diff of difficulties) {
+        available = PARAGRAPHS[diff].filter(p => !usedSet.has(p));
+        if (available.length > 0) break;
+      }
+    }
+    // If still empty, reset all and use full pool
+    if (available.length === 0) {
+      if (roomId) {
+        lobbyUsedParagraphs.set(roomId, new Set());
+      }
+      available = pool;
+    }
+  }
+
+  // Select random paragraph
   const selected = available[Math.floor(Math.random() * available.length)];
-  if (roomId) lobbyLastParagraphs.set(roomId, selected);
+
+  // Track as used
+  if (roomId) {
+    usedSet.add(selected);
+  }
+
   return selected;
 };
 
@@ -715,28 +762,101 @@ io.on('connection', (socket) => {
         if ((lobby.mode === 'random' || !lobby.mode) &&
           lobby.completedPlayers &&
           lobby.completedPlayers.size >= lobby.players.length) {
-          // All players finished - emit game_over with final standings
+          // All players finished - build standings
           const standings = Array.from(lobby.completedPlayers.values())
             .sort((a, b) => a.position - b.position);
 
-          io.to(roomId).emit('game_over', {
-            standings,
-            winner: standings[0]
+          // Detect draw conditions:
+          // 1. All players have 0 progress (idle) - handled below
+          // 2. Top players have same WPM or completion time
+          const allPlayersProgress = standings.map(s => s.progress || 100);
+          const allIdle = allPlayersProgress.every(p => p === 0 || p === undefined);
+
+          // Check if top players are tied (same WPM or same completion time within 100ms)
+          let isDraw = allIdle;
+          let tiedPlayers = [standings[0]];
+
+          if (!isDraw && standings.length > 1) {
+            const topWpm = standings[0]?.wpm || 0;
+            const topTime = standings[0]?.completionTime || 0;
+
+            for (let i = 1; i < standings.length; i++) {
+              const playerWpm = standings[i]?.wpm || 0;
+              const playerTime = standings[i]?.completionTime || 0;
+
+              // Same WPM or completion time within 500ms = tie
+              if (playerWpm === topWpm || Math.abs(playerTime - topTime) < 500) {
+                tiedPlayers.push(standings[i]);
+              } else {
+                break;
+              }
+            }
+
+            isDraw = tiedPlayers.length > 1 || allIdle;
+          }
+
+          // Initialize or update lobby win tracking
+          if (!lobby.gameScores) {
+            lobby.gameScores = new Map();
+            lobby.players.forEach(p => lobby.gameScores.set(p.id, 0));
+          }
+
+          // Award points
+          if (isDraw) {
+            // Draw - all tied players get 1 point
+            tiedPlayers.forEach(player => {
+              const currentScore = lobby.gameScores.get(player.playerId) || 0;
+              lobby.gameScores.set(player.playerId, currentScore + 1);
+
+              // Update in-memory player stats
+              const lobbyPlayer = lobby.players.find(p => p.id === player.playerId);
+              if (lobbyPlayer && lobbyPlayer.stats) {
+                lobbyPlayer.stats.matchesWon = (lobbyPlayer.stats.matchesWon || 0) + 1;
+              }
+
+              // Update database
+              if (lobbyPlayer && lobbyPlayer.mongoId) {
+                User.findByIdAndUpdate(
+                  lobbyPlayer.mongoId,
+                  { $inc: { 'stats.matchesWon': 1 } }
+                ).catch(err => console.error('Failed to update draw stats:', err));
+              }
+            });
+            console.log(`Game ended in DRAW in lobby ${lobby.name}`);
+          } else {
+            // Clear winner - only winner gets a point
+            const winner = standings[0];
+            const currentScore = lobby.gameScores.get(winner.playerId) || 0;
+            lobby.gameScores.set(winner.playerId, currentScore + 1);
+
+            const winnerPlayer = lobby.players.find(p => p.id === winner.playerId);
+            if (winnerPlayer) {
+              if (winnerPlayer.stats) {
+                winnerPlayer.stats.matchesWon = (winnerPlayer.stats.matchesWon || 0) + 1;
+              }
+              if (winnerPlayer.mongoId) {
+                User.findByIdAndUpdate(
+                  winnerPlayer.mongoId,
+                  { $inc: { 'stats.matchesWon': 1 } }
+                ).catch(err => console.error('Failed to update winner stats:', err));
+              }
+            }
+            console.log(`Game over in lobby ${lobby.name}: Winner is ${winner?.playerName}`);
+          }
+
+          // Build scores object for frontend
+          const scores = {};
+          lobby.gameScores.forEach((score, playerId) => {
+            scores[playerId] = score;
           });
 
-          console.log(`Game over in lobby ${lobby.name}: Winner is ${standings[0]?.playerName}`);
-
-          // Track win for the winner (async, fire-and-forget)
-          const winner = standings[0];
-          if (winner) {
-            const winnerPlayer = lobby.players.find(p => p.id === winner.playerId);
-            if (winnerPlayer && winnerPlayer.mongoId) {
-              User.findByIdAndUpdate(
-                winnerPlayer.mongoId,
-                { $inc: { 'stats.matchesWon': 1 } }
-              ).catch(err => console.error('Failed to update winner stats:', err));
-            }
-          }
+          io.to(roomId).emit('game_over', {
+            standings,
+            winner: isDraw ? null : standings[0],
+            isDraw,
+            tiedPlayers: isDraw ? tiedPlayers.map(p => p.playerId) : [],
+            scores
+          });
 
           // Reset for next game
           lobby.completedPlayers = new Map();
@@ -1023,8 +1143,34 @@ io.on('connection', (socket) => {
           isEliminated: false
         };
 
+        // Build full leaderboard from cumulative stats
+        const leaderboard = Array.from(tierState.cumulativeStats.entries())
+          .map(([playerId, stats]) => {
+            const player = lobby.players.find(p => p.id === playerId);
+            return {
+              playerId,
+              playerName: stats.playerName,
+              avatarUrl: player?.avatarUrl,
+              theme: player?.theme,
+              completedRounds: stats.completedRounds,
+              avgWpm: stats.completedRounds > 0 ? Math.round(stats.totalWpm / stats.completedRounds) : 0,
+              avgAccuracy: stats.completedRounds > 0 ? Math.round(stats.totalPrecision / stats.completedRounds) : 0,
+              totalPenaltyTime: stats.totalPenaltyTime,
+              bestWpm: stats.bestWpm,
+              chances: stats.chances,
+              isEliminated: stats.isEliminated
+            };
+          })
+          .sort((a, b) => {
+            // Sort by: most rounds completed, then best avgWpm
+            if (a.completedRounds !== b.completedRounds) {
+              return b.completedRounds - a.completedRounds;
+            }
+            return b.avgWpm - a.avgWpm;
+          });
+
         io.to(roomId).emit('tier_game_complete', {
-          leaderboard: [], // We can build this if needed
+          leaderboard,
           winner,
           totalRounds: currentRound + 1,
           reason: 'last_standing'
@@ -1103,10 +1249,16 @@ io.on('connection', (socket) => {
       if (winner && !isDraw) {
         const winnerPlayer = lobby.players.find(p => p.id === winner.playerId);
         if (winnerPlayer && winnerPlayer.mongoId) {
+          // Update database
           User.findByIdAndUpdate(
             winnerPlayer.mongoId,
             { $inc: { 'stats.matchesWon': 1 } }
           ).catch(err => console.error('Failed to update tier winner stats:', err));
+
+          // Update in-memory stats immediately so lobby shows updated count
+          if (winnerPlayer.stats) {
+            winnerPlayer.stats.matchesWon = (winnerPlayer.stats.matchesWon || 0) + 1;
+          }
         }
       }
 

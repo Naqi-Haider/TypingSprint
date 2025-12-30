@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 import './MultiplayerGame.css';
 
 // Player theme colors - synced with LobbyRoom.jsx
@@ -43,6 +44,9 @@ const MultiplayerGame = ({
   onLeave,
   onReturnToLobby // New prop - return to lobby without leaving room
 }) => {
+  // Auth context for stats refresh
+  const { refreshCurrentUser } = useAuth();
+
   // Game States - skip countdown if lobby already handled it
   const [gamePhase, setGamePhase] = useState(skipCountdown ? 'playing' : 'countdown');
   const [countdownNumber, setCountdownNumber] = useState(5); // Changed from 3 to 5
@@ -104,6 +108,7 @@ const MultiplayerGame = ({
 
   // Score tracking state - position-based for up to 4 players
   const [playerScores, setPlayerScores] = useState({}); // { playerId: { wins: 0, position: null } }
+  const [gameScores, setGameScores] = useState({}); // { playerId: score } - session scores from server
   const [roundNumber, setRoundNumber] = useState(1);
   const [finalPositions, setFinalPositions] = useState([]); // Array of { playerId, position, wpm, accuracy, progress }
 
@@ -176,13 +181,26 @@ const MultiplayerGame = ({
     const handlePlayerCompleted = ({ playerId, playerName, completionTime: oppCompTime, wpm, accuracy, finishPosition }) => {
       if (playerId !== currentPlayer?.id) {
         setOpponentCompletionTime(oppCompTime);
+
+        // Update opponentProgress with completion data for correct rankings
+        setOpponentProgress(prev => ({
+          ...prev,
+          [playerId]: {
+            ...prev[playerId],
+            completed: true,
+            completionTime: oppCompTime,
+            wpm: wpm || prev[playerId]?.wpm || 0,
+            accuracy: accuracy || prev[playerId]?.accuracy || 0,
+            progress: 100
+          }
+        }));
         // In random mode, track opponent completion but wait for game_over from server
         // Don't end game immediately - wait for synchronized game_over event
       }
     };
 
     // Listen for game_over (all players finished or time up - Random mode)
-    const handleGameOver = ({ standings, winner }) => {
+    const handleGameOver = ({ standings, winner, isDraw, scores }) => {
       if (mode === 'random' || !mode) {
         // Finalize results - prevent late updates
         resultFinalizedRef.current = true;
@@ -193,7 +211,19 @@ const MultiplayerGame = ({
         const isWinner = winner?.playerId === currentPlayer?.id;
 
         setFinalPositions(standings || []);
-        setResult(isWinner ? 'win' : 'lose');
+
+        // Store scores for display
+        if (scores) {
+          setGameScores(scores);
+        }
+
+        // Set result state
+        if (isDraw) {
+          setResult('draw');
+        } else {
+          setResult(isWinner ? 'win' : 'lose');
+        }
+
         setGamePhase('finished');
         clearInterval(timerRef.current);
       }
@@ -527,11 +557,21 @@ const MultiplayerGame = ({
   }, [isEliminated, showIntermission, eliminatedCountdown]);
 
 
-
   // Handler for back to lobby button - return to lobby without leaving the room
-  const handleBackToLobby = useCallback(() => {
+  const handleBackToLobby = useCallback(async () => {
     setShowIntermission(false);
     setIsEliminated(false); // Reset eliminated state when going back to lobby
+
+    // Refresh user stats from backend to ensure profile is up-to-date
+    if (refreshCurrentUser) {
+      await refreshCurrentUser();
+    }
+
+    // For Tier Mode final results, navigate to Main Page instead of Lobby
+    if (mode === 'tier' && tierGameEnded) {
+      navigate('/');
+      return;
+    }
 
     // Use onReturnToLobby to go back to lobby view without leaving room
     if (onReturnToLobby) {
@@ -543,7 +583,7 @@ const MultiplayerGame = ({
       // Last fallback: navigate to home
       navigate('/');
     }
-  }, [onReturnToLobby, onLeave, navigate]);
+  }, [onReturnToLobby, onLeave, navigate, refreshCurrentUser, mode, tierGameEnded]);
 
   // Handle "Quit Game" button click in tier mode (give up remaining chances)
   const handleQuitTierGame = useCallback(() => {
@@ -1002,13 +1042,13 @@ const MultiplayerGame = ({
       if (a.completed && !b.completed) return -1;
       if (!a.completed && b.completed) return 1;
 
-      // Both finished? Sort by time (fewer seconds is better)
+      // Both finished? Sort by WPM first (higher is better), then by time
       if (a.completed && b.completed) {
+        // Primary: Higher WPM is better
+        if (a.wpm !== b.wpm) return b.wpm - a.wpm;
+        // Secondary: Faster completion time is better (if WPM is equal)
         if (a.completionTime && b.completionTime) return a.completionTime - b.completionTime;
-        if (a.completionTime) return -1;
-        if (b.completionTime) return 1;
-        // Fallback to WPM if no time
-        return b.wpm - a.wpm;
+        return 0;
       }
 
       // Neither completed - sort by progress (higher is better)
@@ -1057,7 +1097,7 @@ const MultiplayerGame = ({
                 : 'Random'}
             </span>
             <div className={`hud-timer ${timeRemaining <= 10 && timeRemaining > 0 ? 'warning' : ''} ${timeRemaining < 0 ? 'penalty' : ''}`}>
-              {formatTime(timeRemaining)}
+              {isRoundComplete ? 'Finished' : formatTime(timeRemaining)}
             </div>
           </div>
 
@@ -1398,8 +1438,26 @@ const MultiplayerGame = ({
                 position: idx + 1,
                 progress: 100 // Tier mode doesn't use progress bars
               }));
+            } else if (mode === 'random' && finalPositions.length > 0) {
+              // Use server-provided standings for Random mode - ensures IDs match gameScores
+              leaderboard = finalPositions.map((entry, idx) => {
+                const playerInfo = players.find(p => p.id === entry.playerId);
+                return {
+                  id: entry.playerId,
+                  name: entry.playerName || playerInfo?.name || 'Player',
+                  avatarUrl: playerInfo?.avatarUrl,
+                  theme: playerInfo?.theme,
+                  isMe: entry.playerId === currentPlayer?.id,
+                  wpm: entry.wpm || 0,
+                  accuracy: entry.accuracy ?? 0,
+                  progress: 100,
+                  completed: true,
+                  completionTime: entry.completionTime,
+                  position: entry.position || idx + 1
+                };
+              });
             } else {
-              // Build from players for non-tier or fallback - include all players (even eliminated)
+              // Fallback: Build from players - include all players (even eliminated)
               leaderboard = players.map(p => {
                 const isMe = p.id === currentPlayer?.id;
                 const pData = isMe ? null : opponentProgress[p.id];
@@ -1431,15 +1489,11 @@ const MultiplayerGame = ({
                 // Sort eliminated players to the bottom
                 if (a.isEliminated && !b.isEliminated) return 1;
                 if (!a.isEliminated && b.isEliminated) return -1;
-                // Sort by: completion first, then progress, then WPM
+                // Sort by: WPM first for finished, then progress
                 if (a.completed && !b.completed) return -1;
                 if (!a.completed && b.completed) return 1;
                 if (a.completed && b.completed) {
-                  // Both completed - sort by time (lower is better)
-                  if (a.completionTime && b.completionTime) {
-                    return a.completionTime - b.completionTime;
-                  }
-                  // Fallback to WPM if time missing (shouldn't happen for finished)
+                  // Both completed - sort by WPM (higher is better)
                   return b.wpm - a.wpm;
                 }
                 // Neither completed - sort by progress
@@ -1588,7 +1642,7 @@ const MultiplayerGame = ({
                         <span className="lb-col player">Player</span>
                         <span className="lb-col wpm">WPM</span>
                         <span className="lb-col acc">Acc</span>
-                        <span className="lb-col progress">Progress</span>
+                        <span className="lb-col score">Score</span>
                       </div>
                       {leaderboard.map((player, idx) => {
                         const playerTheme = PLAYER_THEMES[player.theme] || PLAYER_THEMES[Object.keys(PLAYER_THEMES)[idx]] || PLAYER_THEMES.retro;
@@ -1621,16 +1675,10 @@ const MultiplayerGame = ({
                               <span className="lb-name">{player.isMe ? 'You' : player.name}</span>
                               {player.isMe && <span className="you-tag">YOU</span>}
                             </span>
-                            <span className="lb-col time">{player.completionTime ? `${(player.completionTime / 1000).toFixed(1)}s` : (player.failed ? 'DNF' : '--')}</span>
+                            <span className="lb-col wpm">{player.wpm || 0}</span>
                             <span className="lb-col acc">{typeof player.accuracy === 'number' ? `${player.accuracy}%` : '--'}</span>
-                            <span className="lb-col progress">
-                              <div className="lb-progress-bar">
-                                <div
-                                  className="lb-progress-fill"
-                                  style={{ width: `${player.progress}%`, background: playerTheme.primary }}
-                                />
-                              </div>
-                              <span className="lb-progress-text">{Math.round(player.progress)}%</span>
+                            <span className="lb-col score">
+                              <span className="score-badge">{gameScores[player.id] || 0}</span>
                             </span>
                           </motion.div>
                         );
@@ -1703,7 +1751,7 @@ const MultiplayerGame = ({
 
                     {/* Random mode or non-tier: just show Back to Lobby */}
                     {mode !== 'tier' && (
-                      <button className="gameover-btn secondary" onClick={onLeave}>
+                      <button className="gameover-btn secondary" onClick={handleBackToLobby}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                           <polyline points="16 17 21 12 16 7" />

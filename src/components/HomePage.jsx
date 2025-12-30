@@ -609,7 +609,7 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
           <h2 className="contribute-title">Open Source & Community Driven</h2>
           <p className="contribute-description">
             TypingSprint is an open-source project built for the typing community.
-            We welcome contributions, bug reports, and feature suggestions from developers and enthusiasts alike.
+            We welcome contributions, bug reports, and feature suggestions from developers and enthusiasts alike. Would love to see you contribute to this project.
           </p>
           <a
             href="https://github.com/Naqi-Haider/TypingSprint"

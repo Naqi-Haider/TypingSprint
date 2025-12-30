@@ -164,6 +164,55 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// GET /api/auth/me - Get current user data (for refreshing stats)
+router.get('/me', async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID required'
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const userResponse = {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      avatar: user.avatar,
+      avatarUrl: user.avatarUrl || '',
+      bannerUrl: user.bannerUrl || '',
+      bio: user.bio || '',
+      theme: user.theme || 'retro',
+      avatarPosition: user.avatarPosition || { x: 50, y: 50 },
+      bannerPosition: user.bannerPosition || { x: 50, y: 50 },
+      stats: user.stats,
+      joinedDate: user.joinedDate
+    };
+
+    res.json({
+      success: true,
+      user: userResponse
+    });
+
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error getting user data'
+    });
+  }
+});
+
 // GET /api/auth/verify - Verify user session (optional for JWT)
 router.get('/verify', async (req, res) => {
   try {

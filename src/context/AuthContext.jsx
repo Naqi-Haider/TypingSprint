@@ -76,9 +76,18 @@ export const AuthProvider = ({ children }) => {
           name: data.user.username,
           email: data.user.email,
           avatar: data.user.avatar,
+          avatarUrl: data.user.avatarUrl || '',
+          bannerUrl: data.user.bannerUrl || '',
+          bio: data.user.bio || '',
           bestWPM: data.user.stats?.bestWPM || 0,
+          matchesWon: data.user.stats?.matchesWon || 0,
           gamesPlayed: data.user.stats?.gamesPlayed || 0,
-          joinedDate: data.user.joinedDate
+          accuracy: data.user.stats?.accuracy || 0,
+          hoursPlayed: data.user.stats?.hoursPlayed || 0,
+          joinedDate: data.user.joinedDate,
+          theme: data.user.theme || 'retro',
+          avatarPosition: data.user.avatarPosition || { x: 50, y: 50 },
+          bannerPosition: data.user.bannerPosition || { x: 50, y: 50 }
         };
 
         setUser(userData);
@@ -149,9 +158,18 @@ export const AuthProvider = ({ children }) => {
           name: data.user.username,
           email: data.user.email,
           avatar: data.user.avatar,
+          avatarUrl: data.user.avatarUrl || '',
+          bannerUrl: data.user.bannerUrl || '',
+          bio: data.user.bio || '',
           bestWPM: data.user.stats?.bestWPM || 0,
+          matchesWon: data.user.stats?.matchesWon || 0,
           gamesPlayed: data.user.stats?.gamesPlayed || 0,
-          joinedDate: data.user.joinedDate
+          accuracy: data.user.stats?.accuracy || 0,
+          hoursPlayed: data.user.stats?.hoursPlayed || 0,
+          joinedDate: data.user.joinedDate,
+          theme: data.user.theme || 'retro',
+          avatarPosition: data.user.avatarPosition || { x: 50, y: 50 },
+          bannerPosition: data.user.bannerPosition || { x: 50, y: 50 }
         };
 
         setUser(userData);
@@ -194,6 +212,57 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('user', JSON.stringify('guest'));
     localStorage.setItem('hasVisited', 'true');
     setIsFirstVisit(false);
+  };
+
+  // Refresh current user data from backend (for real-time stats sync)
+  const refreshCurrentUser = async () => {
+    if (!user || user === 'guest') {
+      return null;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/auth/me?userId=${user.id}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        console.error('Failed to refresh user data');
+        return null;
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.user) {
+        const userData = {
+          id: data.user.id,
+          name: data.user.username,
+          email: data.user.email,
+          avatar: data.user.avatar,
+          avatarUrl: data.user.avatarUrl,
+          bannerUrl: data.user.bannerUrl,
+          bio: data.user.bio,
+          bestWPM: data.user.stats?.bestWPM || 0,
+          matchesWon: data.user.stats?.matchesWon || 0,
+          gamesPlayed: data.user.stats?.gamesPlayed || 0,
+          accuracy: data.user.stats?.accuracy || 0,
+          hoursPlayed: data.user.stats?.hoursPlayed || 0,
+          joinedDate: data.user.joinedDate,
+          theme: data.user.theme,
+          avatarPosition: data.user.avatarPosition,
+          bannerPosition: data.user.bannerPosition
+        };
+
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+        console.log('✅ User data refreshed from backend');
+        return userData;
+      }
+    } catch (err) {
+      console.error('Error refreshing user data:', err);
+    }
+    return null;
   };
 
   const updateUserStats = async (stats) => {
@@ -300,6 +369,7 @@ export const AuthProvider = ({ children }) => {
     signup,
     logout,
     continueAsGuest,
+    refreshCurrentUser,
     updateUserStats,
     saveGameStats,
     clearError,
