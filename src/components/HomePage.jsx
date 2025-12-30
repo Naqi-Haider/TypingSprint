@@ -27,6 +27,7 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
   const navigate = useNavigate();
   const { user, isLoggedIn } = useAuth();
   const modesSectionRef = useRef(null);
+  const multiplayerSectionRef = useRef(null);
   const [previewMode, setPreviewMode] = useState(null); // null, 'speed-bullet', or 'paragraph'
 
   // Multiplayer State
@@ -176,6 +177,10 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
     modesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const scrollToMultiplayer = () => {
+    multiplayerSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   const handlePlayMode = (mode) => {
     onStartGame(mode); // Pass 'speed-bullet' or 'paragraph' to parent
   };
@@ -222,7 +227,11 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
   };
 
   const handleGenerateRoom = () => {
-    if (!lobbyConfig.username.trim()) return;
+    const trimmedName = lobbyConfig.username.trim();
+    if (!trimmedName || trimmedName.length < 5) {
+      alert('Room name must be at least 5 characters long');
+      return;
+    }
     setIsConnecting(true);
 
     // Get the saved theme
@@ -402,6 +411,15 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
                 </svg>
                 <span>Start Typing</span>
               </button>
+              <button className="cta-button secondary" onClick={scrollToMultiplayer}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span>Play Multiplayer</span>
+              </button>
             </div>
           </div>
 
@@ -545,23 +563,25 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
       </section>
 
       {/* Multiplayer Section - Split Screen Hero */}
-      <section className="multiplayer-section">
+      <section className="multiplayer-section" ref={multiplayerSectionRef}>
         <h2 className="section-title multiplayer-heading">Multiplayer Modes</h2>
         <div className="multiplayer-split-container">
-          {/* Left Section - Paragraph Race */}
-          <div className="multiplayer-panel paragraph-race-panel">
+          {/* Paragraph Race - Full Width */}
+          <div className="multiplayer-panel paragraph-race-panel full-width">
             <div className="panel-content">
-              <div className="panel-icon">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <line x1="4" y1="22" x2="4" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+              <div>
+                <div className="panel-icon">
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <line x1="4" y1="22" x2="4" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <h3 className="panel-title">PARAGRAPH RACE</h3>
+                <p className="panel-description">
+                  Race against friends to complete paragraphs first. The fastest and most accurate typist wins.
+                  Perfect for competitive practice with real-time progress tracking.
+                </p>
               </div>
-              <h3 className="panel-title">PARAGRAPH RACE</h3>
-              <p className="panel-description">
-                Race against friends to complete paragraphs first. The fastest and most accurate typist wins.
-                Perfect for competitive practice with real-time progress tracking.
-              </p>
               <div className="panel-buttons">
                 <button className="panel-btn primary-btn" onClick={handleCreateLobby}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -580,45 +600,28 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
               </div>
             </div>
           </div>
+        </div>
+      </section>
 
-          {/* Center Divider */}
-          <div className="multiplayer-divider">
-            <span className="divider-text">VS</span>
-          </div>
-
-          {/* Right Section - Debuff Mode */}
-          <div className="multiplayer-panel debuff-mode-panel">
-            <div className="panel-content">
-              <div className="panel-icon danger">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <h3 className="panel-title danger">DEBUFF MODE</h3>
-              <p className="panel-description">
-                Chaos unleashed! Apply debuffs to opponents - scrambled letters, reversed text, hidden words.
-                Survive the madness and emerge victorious in this intense battle mode.
-              </p>
-              <div className="panel-buttons">
-                <button className="panel-btn danger-btn">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-                    <path d="M12 8v4M12 16h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                  <span>Create Chaos</span>
-                </button>
-                <button className="panel-btn danger-outline-btn">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                    <line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                  <span>Join Chaos</span>
-                </button>
-              </div>
-            </div>
-            <div className="coming-soon-badge">Coming Soon</div>
-          </div>
+      {/* GitHub Contribution Section */}
+      <section className="contribute-section">
+        <div className="contribute-content">
+          <h2 className="contribute-title">Open Source & Community Driven</h2>
+          <p className="contribute-description">
+            TypingSprint is an open-source project built for the typing community.
+            We welcome contributions, bug reports, and feature suggestions from developers and enthusiasts alike.
+          </p>
+          <a
+            href="https://github.com/Naqi-Haider/TypingSprint"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="contribute-button"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+            </svg>
+            <span>Contribute on GitHub</span>
+          </a>
         </div>
       </section>
 
@@ -626,13 +629,6 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
       <footer className="footer">
         <div className="footer-content">
           <p className="footer-text">© 2024 Typing Sprint. Built with passion for typing enthusiasts.</p>
-          <div className="footer-links">
-            <a href="#" className="footer-link">About</a>
-            <span className="footer-separator">•</span>
-            <a href="#" className="footer-link">Privacy</a>
-            <span className="footer-separator">•</span>
-            <a href="#" className="footer-link">Contact</a>
-          </div>
         </div>
       </footer>
 
@@ -688,7 +684,7 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
                           <input
                             type="text"
                             className="lobby-input lobby-input-compact"
-                            placeholder="Enter lobby name"
+                            placeholder="Min 5 characters"
                             value={lobbyConfig.username}
                             onChange={handleLobbyNameChange}
                             maxLength={20}
@@ -773,16 +769,13 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
                     <button
                       className="lobby-generate-btn"
                       onClick={handleGenerateRoom}
-                      disabled={!lobbyConfig.username.trim()}
+                      disabled={!lobbyConfig.username.trim() || lobbyConfig.username.trim().length < 5}
                     >
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                       <span>Create Room</span>
                     </button>
-                    {!lobbyConfig.username.trim() && (
-                      <p className="lobby-footer-hint">Enter a username to create the room</p>
-                    )}
                   </div>
                 </>
               )}

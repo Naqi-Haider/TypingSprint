@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ParagraphResults from './ParagraphResults';
 import { getRandomParagraph, getNextDifficulty, DIFFICULTY_CONFIG } from '../data/ParagraphBank';
 import { useAuth } from '../context/AuthContext';
+import { usePlayTimeTracker } from '../hooks/usePlayTimeTracker';
 import './ParagraphEngine.css';
 
 const BASE_TIME = 50; // 50 seconds base time per paragraph
@@ -295,7 +296,7 @@ const ParagraphEngine = ({ onGoHome, autoStart = false }) => {
                 {/* Combo Display with Streak Counter */}
                 <div className="combo-wrapper">
                   <motion.div
-                    className={`combo-display ${COMBO_LEVELS[comboLevel].glow ? 'combo-glow' : ''}`}
+                    className={`combo - display ${COMBO_LEVELS[comboLevel].glow ? 'combo-glow' : ''} `}
                     key={comboLevel}
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}

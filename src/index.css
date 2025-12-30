@@ -254,6 +254,11 @@
   color: #555555 !important;
 }
 
+/* Paper Theme - Multiplayer Progress WPM */
+.theme-paper .progress-wpm {
+  color: #2f4f4f !important;
+}
+
 /* Theme: Matrix Gold (Premium) */
 .theme-gold {
   --primary: #eab308;

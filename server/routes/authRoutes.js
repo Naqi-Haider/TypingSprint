@@ -264,5 +264,45 @@ router.put('/profile', async (req, res) => {
   }
 });
 
+// POST /api/stats/update-playtime - Update user play time
+router.post('/stats/update-playtime', async (req, res) => {
+  try {
+    const { userId, hoursPlayed } = req.body;
+
+    if (!userId || hoursPlayed === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID and hours played are required'
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Increment hours played
+    user.stats.hoursPlayed = (user.stats.hoursPlayed || 0) + hoursPlayed;
+    await user.save();
+
+    console.log(`✅ Play time updated for ${user.username}: +${hoursPlayed.toFixed(2)}h (Total: ${user.stats.hoursPlayed.toFixed(2)}h)`);
+
+    res.status(200).json({
+      success: true,
+      hoursPlayed: user.stats.hoursPlayed
+    });
+
+  } catch (error) {
+    console.error('Play time update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during play time update'
+    });
+  }
+});
+
 export default router;
 

@@ -4,6 +4,7 @@ import WordDisplay from './WordDisplay';
 import Results from './Results';
 import TerminalLoader from './TerminalLoader';
 import { useAuth } from '../context/AuthContext';
+import { usePlayTimeTracker } from '../hooks/usePlayTimeTracker';
 import './GameEngine.css';
 
 // Organized word bank by grammatical type
@@ -125,6 +126,9 @@ const GameEngine = ({ onGoHome, autoStart = false }) => {
   const hasSavedStats = useRef(false); // Prevent double-saving stats
   const isInitializing = useRef(false); // Prevent double initialization
   const currentSessionId = useRef(0); // Unique session ID for loader
+
+  // Track play time for logged-in users
+  usePlayTimeTracker(gameState === 'playing');
 
   // Get random word with consecutive type limit (max 2 of same type)
   const getRandomWord = useCallback((usedWords = [], lastTwoTypes = []) => {

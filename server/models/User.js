@@ -77,6 +77,10 @@ const UserSchema = new mongoose.Schema({
     matchesWon: {
       type: Number,
       default: 0
+    },
+    hoursPlayed: {
+      type: Number,
+      default: 0
     }
   },
   joinedDate: {

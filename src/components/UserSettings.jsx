@@ -301,7 +301,7 @@ const UserSettings = ({ onClose }) => {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" fill="currentColor" />
                   </svg>
-                  <span>Level {Math.floor((user?.bestWPM || 0) / 10) + 1}</span>
+                  <span>Level {Math.floor((user?.hoursPlayed || 0)) + 1}</span>
                 </div>
                 <div className="profile-bio">{bio}</div>
 
@@ -311,8 +311,8 @@ const UserSettings = ({ onClose }) => {
                     <div className="profile-stat-label">Best WPM</div>
                   </div>
                   <div className="profile-stat">
-                    <div className="profile-stat-value">{user?.highestStreak || 0}</div>
-                    <div className="profile-stat-label">Highest Streak</div>
+                    <div className="profile-stat-value">{(user?.hoursPlayed || 0).toFixed(1)}</div>
+                    <div className="profile-stat-label">Hours Played</div>
                   </div>
                 </div>
               </div>

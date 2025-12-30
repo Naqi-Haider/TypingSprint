@@ -108,29 +108,6 @@
   opacity: 0.8;
 }
 
-.hud-stat.spectator-count {
-  color: #3b82f6;
-  background: rgba(59, 130, 246, 0.15);
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-weight: 700;
-}
-
-.hud-stat.spectator-badge {
-  color: #a855f7;
-  background: rgba(168, 85, 247, 0.2);
-  padding: 4px 12px;
-  border-radius: 6px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.hud-avatar.spectating {
-  border-color: #a855f7;
-  box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
-}
-
 /* HUD Center */
 .hud-center {
   display: flex;
@@ -2520,6 +2497,50 @@
   border-color: var(--player-color, var(--primary));
 }
 
+/* ========== Eliminated Player Styling ========== */
+.progress-card.eliminated {
+  opacity: 0.4;
+  background: rgba(50, 50, 50, 0.2);
+  border-color: rgba(100, 100, 100, 0.4);
+  pointer-events: none;
+  filter: grayscale(80%);
+  position: relative;
+}
+
+.progress-card.eliminated .progress-bar-fill {
+  background: linear-gradient(90deg, #4b5563, #374151) !important;
+  opacity: 0.5;
+}
+
+.progress-card.eliminated .progress-name,
+.progress-card.eliminated .progress-wpm,
+.progress-card.eliminated .progress-percentage {
+  color: #6b7280 !important;
+  opacity: 0.6;
+}
+
+.progress-card.eliminated .progress-rank {
+  color: #4b5563 !important;
+}
+
+.progress-card.eliminated::after {
+  content: 'ELIMINATED';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: #dc2626;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  background: rgba(0, 0, 0, 0.85);
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  z-index: 5;
+}
+
 .finish-position-badge {
   display: flex;
   align-items: center;
@@ -3115,7 +3136,7 @@
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* ========== Spectator Mode Styles ========== */
+
 .spectator-header {
   display: flex;
   align-items: center;
@@ -3259,27 +3280,6 @@
   font-size: 1.1rem;
 }
 
-.spectator-target-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-left: 8px;
-  border-left: 2px solid rgba(59, 130, 246, 0.3);
-}
-
-.target-name {
-  font-family: var(--font-display);
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #3b82f6;
-}
-
-.target-stats {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
 .spectator-player-buttons {
   display: flex;
   gap: 8px;
@@ -3337,14 +3337,6 @@
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-primary);
-}
-
-.spectator-btn-progress {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  min-width: 30px;
-  text-align: right;
 }
 
 .spectator-exit-btn {
@@ -3697,180 +3689,4 @@
 .final-countdown-buttons .gameover-btn.secondary:hover {
   background: rgba(239, 68, 68, 0.1);
   border-color: #ef4444;
-}
-
-/* ========== Spectator Console Header ========== */
-.game-main-area.spectator-mode {
-  flex-direction: column;
-  gap: 0;
-}
-
-.game-console.spectator-console {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.spectator-console-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-md) var(--spacing-lg);
-  background: rgba(0, 0, 0, 0.4);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  margin: calc(-1 * var(--spacing-lg)) calc(-1 * var(--spacing-lg)) var(--spacing-lg);
-  border-radius: 16px 16px 0 0;
-}
-
-.spectator-player-info {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-}
-
-.spectator-avatar {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: var(--avatar-color, #06b6d4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  color: #fff;
-  font-size: 1.1rem;
-  box-shadow: 0 0 15px var(--avatar-color, rgba(6, 182, 212, 0.5));
-}
-
-.spectator-avatar img {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.spectator-player-details {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.spectator-player-name {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: #f1f5f9;
-}
-
-.spectator-mode-badge {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #3b82f6;
-  letter-spacing: 0.5px;
-}
-
-.spectator-live-stats {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-lg);
-}
-
-.spectator-stat {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--font-mono);
-  font-size: 0.95rem;
-  color: #94a3b8;
-}
-
-.spectator-stat.wpm {
-  color: #22c55e;
-}
-
-.spectator-stat.progress {
-  color: #3b82f6;
-  font-weight: 700;
-  font-size: 1.1rem;
-}
-
-/* ========== Eliminated Player Styles in Progress Cards ========== */
-.progress-card.eliminated {
-  opacity: 0.5;
-  background: rgba(100, 116, 139, 0.1);
-  border-color: rgba(100, 116, 139, 0.2);
-}
-
-.progress-card.eliminated .progress-name,
-.progress-card.eliminated .progress-percent-large,
-.progress-card.eliminated .progress-wpm {
-  color: #64748b;
-}
-
-.player-eliminated-badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #ef4444;
-  color: #fff;
-  margin-left: auto;
-}
-
-.eliminated-badge-bar {
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 6px;
-}
-
-.eliminated-badge-bar .eliminated-text {
-  font-family: var(--font-display);
-  font-size: 0.7rem;
-  font-weight: 800;
-  color: #ef4444;
-  letter-spacing: 1px;
-}
-
-/* ========== Spectator Loading Countdown ========== */
-.spectator-loading-countdown-wrapper {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  width: 100%;
-}
-
-.spectator-loading-countdown-text {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 900;
-  color: #3b82f6;
-  min-width: 30px;
-  text-align: center;
-}
-
-/* ========== Intermission Eliminated Row ========== */
-.lb-row.eliminated {
-  opacity: 0.6;
-  background: rgba(100, 116, 139, 0.1);
-}
-
-.lb-row.eliminated .lb-name {
-  color: #64748b;
-}
-
-.lb-status.eliminated {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.15);
-}
-
-.lb-time {
-  font-family: var(--font-mono);
-  font-weight: 600;
-  color: #f1f5f9;
 }

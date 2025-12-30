@@ -183,12 +183,12 @@ const LobbyRoom = ({
     // Listen for player status updates (in game / in lobby)
     newSocket.on('player_status_update', (data) => {
       console.log('Player status update:', data);
-      setPlayers(prev => prev.map(p => 
-        p.id === data.playerId 
+      setPlayers(prev => prev.map(p =>
+        p.id === data.playerId
           ? { ...p, inGame: data.inGame, isReady: data.isReady }
           : p
       ));
-      
+
       // If this is the current player, update local isReady state
       if (data.playerId === newSocket.id) {
         setIsReady(data.isReady);
@@ -453,7 +453,7 @@ const LobbyRoom = ({
   const isFull = players.length >= lobbyData.maxPlayers;
   const allReady = players.length > 0 && players.every(p => p.isReady);
   const canStartGame = isFull && allReady && isHost;
-  
+
   // Handler to return to lobby without leaving room (for eliminated players)
   const handleReturnToLobby = () => {
     // Notify server that this player is returning to lobby
@@ -467,7 +467,7 @@ const LobbyRoom = ({
     setGameStarting(false); // Reset game starting state
     setCountdown(0); // Reset countdown
     setAllPlayersReady(false); // Reset all players ready flag
-    
+
     // Force non-hosts to non-ready state (host is always ready)
     // The server will send player_status_update which will set the correct state
     // But we also set it locally immediately for responsiveness
@@ -699,15 +699,20 @@ const LobbyRoom = ({
                       {/* Player Name */}
                       <span className="player-name-new">{player.name}</span>
 
-                      {/* Stats Row */}
-                      <div className="player-stats-new">
-                        <span className="stat-item">
-                          <strong>{player.stats?.matchesWon || 0}</strong> Won
-                        </span>
-                        <span className="stat-divider">|</span>
-                        <span className="stat-item">
-                          <strong>{player.stats?.wpm || 0}</strong> WPM
-                        </span>
+                      {/* Player Level Badge */}
+                      <div className="player-level-badge">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" fill="currentColor" />
+                        </svg>
+                        <span>Lv. {Math.floor((player.stats?.hoursPlayed || 0)) + 1}</span>
+                      </div>
+
+                      {/* Player Stats - Only Games Won */}
+                      <div className="player-stats-inline">
+                        <div className="player-stat-item">
+                          <span className="stat-value">{player.stats?.matchesWon || 0}</span>
+                          <span className="stat-label">Games Won</span>
+                        </div>
                       </div>
 
                       {/* Status Badge - In Game / Ready / Not Ready */}
@@ -740,6 +745,7 @@ const LobbyRoom = ({
                         <button
                           className={`ready-toggle-btn ${player.isReady ? 'ready' : ''}`}
                           onClick={handleToggleReady}
+                          data-hover-text={player.isReady ? 'Not Ready' : 'Click to Ready'}
                         >
                           {player.isReady ? 'Ready!' : 'Click to Ready'}
                         </button>

@@ -6,7 +6,6 @@ import GameEngine from './components/GameEngine';
 import ParagraphEngine from './components/ParagraphEngine';
 import HomePage from './components/HomePage';
 import LobbyRoom from './components/LobbyRoom';
-import RippleCursor from './components/RippleCursor';
 import TerminalLoader from './components/TerminalLoader';
 import { AuthProvider, AuthModal } from './components/AuthSystem';
 
@@ -48,7 +47,10 @@ function AppContent() {
     };
 
     window.addEventListener('themeChange', handleThemeChange);
-    return () => window.removeEventListener('themeChange', handleThemeChange);
+
+    return () => {
+      window.removeEventListener('themeChange', handleThemeChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -87,7 +89,6 @@ function AppContent() {
   return (
     <div className={`app-wrapper ${THEME_CLASSES[currentTheme] || ''}`}>
       <AuthModal />
-      <RippleCursor maxSize={18} duration={800} blur={true} />
       <div className="app">
         <Navbar onLogoClick={handleLogoClick} />
         <main className="main-content">
