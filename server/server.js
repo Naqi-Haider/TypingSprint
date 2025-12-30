@@ -847,16 +847,16 @@ io.on('connection', (socket) => {
           // Draw if:
           // 1. All players are idle (0 progress)
           // 2. No valid finishers exist (everyone has 0 WPM or timed out)
-          // 3. Multiple valid finishers with same completion time
-          let isDraw = allIdle || finishers.length === 0;
-          let tiedPlayers = finishers.length > 0 ? [finishers[0]] : [...standings]; // If no finishers, all are tied
+          // 3. Multiple valid finishers with same completion time (within 500ms)
+          let isDraw = allIdle || (standings.length > 1 && finishers.length === 0);
+          let tiedPlayers = finishers.length > 0 ? [finishers[0]] : [...standings];
 
           if (!isDraw && finishers.length > 1) {
             const topTime = finishers[0]?.completionTime || 0;
             // Check for tie: completion time within 500ms
             for (let i = 1; i < finishers.length; i++) {
               const playerTime = finishers[i]?.completionTime || 0;
-              if (Math.abs(playerTime - topTime) < 0.5) { // Within 500ms
+              if (Math.abs(playerTime - topTime) <= 0.5) { // Within 500ms
                 tiedPlayers.push(finishers[i]);
               } else {
                 break;

@@ -10,7 +10,9 @@ import HeroTypewriter from './HeroTypewriter';
 import sbPreview from '../assets/sb_preview.mp4';
 import paraPreview from '../assets/para_preview.mp4';
 
-const socket = io('http://localhost:5000');
+import { SOCKET_URL } from '../config';
+
+const socket = io(SOCKET_URL);
 
 // Theme-based GIF filters
 const THEME_GIF_FILTERS = {
@@ -593,7 +595,7 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
       </section>
 
       {/* Multiplayer Section - Split Screen Hero */}
-      <section className="multiplayer-section scroll-animate-left" ref={multiplayerSectionRef}>
+      <section id="multiplayer-section" className="multiplayer-section scroll-animate-left" ref={multiplayerSectionRef}>
         <h2 className="section-title multiplayer-heading">Multiplayer Modes</h2>
         <div className="multiplayer-split-container">
           {/* Paragraph Race - Full Width */}
