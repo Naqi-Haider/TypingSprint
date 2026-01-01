@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { io } from 'socket.io-client';
+import { SOCKET_URL } from '../config';
 import MultiplayerGame from './MultiplayerGame';
 import GameModal from './GameModal';
 import '../styles/LobbyRoom.css';
@@ -125,7 +126,7 @@ const LobbyRoom = ({
     setCurrentTheme(savedTheme);
 
     // Connect to socket server
-    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+    // SOCKET_URL imported from config
     const newSocket = io(SOCKET_URL, {
       transports: ['websocket'],
       reconnection: true,
