@@ -72,20 +72,23 @@ router.post('/register', async (req, res) => {
     const savedUser = await newUser.save();
     console.log('✅ User saved successfully:', { id: savedUser._id, username: savedUser.username });
 
-    // Send verification email
+    // Send verification email in background (non-blocking)
+    // Don't await - let it run asynchronously so response is instant
     const frontendUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-    const emailResult = await sendVerificationEmail(
+    sendVerificationEmail(
       savedUser.email,
       savedUser.username,
       verificationToken,
       frontendUrl
-    );
+    ).then(result => {
+      if (!result.success) {
+        console.error('⚠️ Verification email failed to send:', result.error);
+      }
+    }).catch(err => {
+      console.error('⚠️ Verification email error:', err.message);
+    });
 
-    if (!emailResult.success) {
-      console.error('⚠️ Verification email failed to send:', emailResult.error);
-    }
-
-    // Return success with pending verification message
+    // Return success immediately without waiting for email
     res.status(201).json({
       success: true,
       message: 'Registration successful! Please check your email to verify your account.',
