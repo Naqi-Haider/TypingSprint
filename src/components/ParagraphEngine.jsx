@@ -35,6 +35,7 @@ const ParagraphEngine = ({ onGoHome, autoStart = false }) => {
   const [usedParagraphs, setUsedParagraphs] = useState([]);
   const [comboLevel, setComboLevel] = useState('START');
   const inputRef = useRef(null);
+  const hasSavedStats = useRef(false);
 
   const startGame = useCallback(() => {
     const firstParagraph = getRandomParagraph('easy', []);
@@ -52,6 +53,7 @@ const ParagraphEngine = ({ onGoHome, autoStart = false }) => {
     setUsedParagraphs([firstParagraph]);
     setStartTime(Date.now());
     setComboLevel('START');
+    hasSavedStats.current = false; // Reset stats save flag
     setGameState('playing');
     setTimeout(() => inputRef.current?.focus(), 100);
   }, []);
@@ -75,7 +77,7 @@ const ParagraphEngine = ({ onGoHome, autoStart = false }) => {
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [gameState]);
+  }, [gameState, timeLeft]);
 
   // Update combo level based on correct streak
   useEffect(() => {
@@ -97,9 +99,11 @@ const ParagraphEngine = ({ onGoHome, autoStart = false }) => {
     }
   }, [correctStreak, hasStartedTyping]);
 
-  // Save stats when game finishes
+  // Save stats when game finishes (only once)
   useEffect(() => {
-    if (gameState === 'finished' && isLoggedIn) {
+    if (gameState === 'finished' && isLoggedIn && !hasSavedStats.current) {
+      hasSavedStats.current = true;
+
       const totalTime = startTime ? (Date.now() - startTime) / 1000 : 0;
       const accuracy = totalCharacters > 0
         ? Math.round((totalCharacters - totalErrors) / totalCharacters * 100)
@@ -282,7 +286,7 @@ const ParagraphEngine = ({ onGoHome, autoStart = false }) => {
             <div className="game-content">
               {/* Left: Paragraph Display */}
               <div className="paragraph-section">
-                <div className="paragraph-display">
+                <div className="paragraph-display" onClick={() => inputRef.current?.focus()}>
                   {currentParagraph.split('').map((char, index) => (
                     <span key={index} className={getCharClass(index)}>
                       {char}
