@@ -53,47 +53,51 @@ router.post('/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Generate verification token
-    const verificationToken = generateVerificationToken();
-    const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    // NOTE: Email verification disabled - uncomment when domain is available
+    // const verificationToken = generateVerificationToken();
+    // const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    // Create new user
+    // Create new user - auto-verified since email verification is disabled
     const newUser = new User({
       username,
       email: email.toLowerCase(),
       password: hashedPassword,
       avatar: username.charAt(0).toUpperCase(),
-      isVerified: false,
-      verificationToken,
-      verificationTokenExpires
+      isVerified: true, // Auto-verify when email verification is disabled
+      verificationToken: null,
+      verificationTokenExpires: null
     });
 
     console.log('📝 Saving new user to MongoDB:', { username, email: email.toLowerCase() });
     const savedUser = await newUser.save();
     console.log('✅ User saved successfully:', { id: savedUser._id, username: savedUser.username });
 
-    // Send verification email in background (non-blocking)
-    // Don't await - let it run asynchronously so response is instant
-    const frontendUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-    sendVerificationEmail(
-      savedUser.email,
-      savedUser.username,
-      verificationToken,
-      frontendUrl
-    ).then(result => {
-      if (!result.success) {
-        console.error('⚠️ Verification email failed to send:', result.error);
-      }
-    }).catch(err => {
-      console.error('⚠️ Verification email error:', err.message);
-    });
+    // NOTE: Email verification disabled - uncomment when domain is available
+    // const frontendUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    // sendVerificationEmail(savedUser.email, savedUser.username, verificationToken, frontendUrl)
+    //   .then(result => { if (!result.success) console.error('Verification email failed:', result.error); })
+    //   .catch(err => console.error('Verification email error:', err.message));
 
-    // Return success immediately without waiting for email
+    // Return user object for auto-login (email verification disabled)
+    const userResponse = {
+      id: savedUser._id,
+      username: savedUser.username,
+      email: savedUser.email,
+      avatar: savedUser.avatar,
+      avatarUrl: savedUser.avatarUrl || '',
+      bannerUrl: savedUser.bannerUrl || '',
+      bio: savedUser.bio || '',
+      theme: savedUser.theme || 'retro',
+      avatarPosition: savedUser.avatarPosition || { x: 50, y: 50 },
+      bannerPosition: savedUser.bannerPosition || { x: 50, y: 50 },
+      stats: savedUser.stats,
+      joinedDate: savedUser.joinedDate
+    };
+
     res.status(201).json({
       success: true,
-      message: 'Registration successful! Please check your email to verify your account.',
-      requiresVerification: true,
-      email: savedUser.email
+      message: 'User registered successfully',
+      user: userResponse
     });
 
   } catch (error) {
@@ -136,15 +140,15 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Check if email is verified
-    if (!user.isVerified) {
-      return res.status(403).json({
-        success: false,
-        message: 'Please verify your email before logging in',
-        requiresVerification: true,
-        email: user.email
-      });
-    }
+    // NOTE: Email verification disabled - uncomment when domain is available
+    // if (!user.isVerified) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: 'Please verify your email before logging in',
+    //     requiresVerification: true,
+    //     email: user.email
+    //   });
+    // }
 
     // Update last login
     user.lastLogin = Date.now();
