@@ -28,7 +28,7 @@ const THEME_GIF_FILTERS = {
 
 const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
   const navigate = useNavigate();
-  const { user, isLoggedIn } = useAuth();
+  const { user, isLoggedIn, setShowAuthModal } = useAuth();
   const modesSectionRef = useRef(null);
   const multiplayerSectionRef = useRef(null);
   const contributeSectionRef = useRef(null);
@@ -224,6 +224,11 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
 
   // Multiplayer handlers
   const handleCreateLobby = () => {
+    // Restrict guests from creating lobbies - must be logged in
+    if (!isLoggedIn) {
+      setShowAuthModal(true);
+      return;
+    }
     // Generate room ID when opening modal
     const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
     setGeneratedRoomId(newRoomId);
@@ -233,6 +238,11 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
   };
 
   const handleQuickJoin = () => {
+    // Restrict guests from joining lobbies - must be logged in
+    if (!isLoggedIn) {
+      setShowAuthModal(true);
+      return;
+    }
     setActiveModal('join');
     setJoinCode('');
     setJoinUrl('');
