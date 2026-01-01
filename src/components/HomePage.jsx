@@ -9,6 +9,7 @@ import TypewriterText from './TypewriterText';
 import HeroTypewriter from './HeroTypewriter';
 import sbPreview from '../assets/sb_preview.mp4';
 import paraPreview from '../assets/para_preview.mp4';
+import typingKeyboardGif from '../assets/typingKeyboard.gif';
 
 import { SOCKET_URL } from '../config';
 
@@ -459,7 +460,7 @@ const HomePage = ({ onStartGame, currentTheme = 'retro' }) => {
 
           <div className="hero-image-container">
             <img
-              src="/src/assets/typingKeyboard.gif"
+              src={typingKeyboardGif}
               alt="Typing Animation"
               className="keyboard-gif"
               style={{ filter: gifFilter }}
