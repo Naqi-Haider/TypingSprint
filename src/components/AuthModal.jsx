@@ -134,7 +134,7 @@ const AuthModal = () => {
                   </button>
                 </form>
                 <p className="auth-toggle-link">
-                  New here? <span onClick={() => { clearError(); setLocalError(''); setMode('signup'); }}>Create Account</span>
+                  New here? <span onClick={() => { clearError(); setLocalError(''); setFormData({ name: '', email: '', password: '' }); setMode('signup'); }}>Create Account</span>
                 </p>
               </div>
             </div>
@@ -179,11 +179,11 @@ const AuthModal = () => {
               <div className="auth-footer">
                 <p>
                   Don't have an account?{' '}
-                  <span className="auth-link" onClick={() => { clearError(); setLocalError(''); setMode('signup'); }}>
+                  <span className="auth-link" onClick={() => { clearError(); setLocalError(''); setFormData({ name: '', email: '', password: '' }); setMode('signup'); }}>
                     Sign up
                   </span>
                 </p>
-                <span className="auth-link" onClick={() => { clearError(); setLocalError(''); setMode('choice'); }}>
+                <span className="auth-link" onClick={() => { clearError(); setLocalError(''); setFormData({ name: '', email: '', password: '' }); setMode('choice'); }}>
                   ← Back
                 </span>
               </div>
@@ -238,11 +238,11 @@ const AuthModal = () => {
               <div className="auth-footer">
                 <p>
                   Already have an account?{' '}
-                  <span className="auth-link" onClick={() => { clearError(); setLocalError(''); setMode('login'); }}>
+                  <span className="auth-link" onClick={() => { clearError(); setLocalError(''); setFormData({ name: '', email: '', password: '' }); setMode('login'); }}>
                     Login
                   </span>
                 </p>
-                <span className="auth-link" onClick={() => { clearError(); setLocalError(''); setMode('choice'); }}>
+                <span className="auth-link" onClick={() => { clearError(); setLocalError(''); setFormData({ name: '', email: '', password: '' }); setMode('choice'); }}>
                   ← Back
                 </span>
               </div>
