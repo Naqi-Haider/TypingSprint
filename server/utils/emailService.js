@@ -19,6 +19,17 @@ const createTransporter = () => {
  * @param {string} frontendUrl - Frontend base URL for verification link
  */
 export const sendVerificationEmail = async (email, username, token, frontendUrl) => {
+  // Check if email credentials are configured
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.error('❌ Email credentials not configured. EMAIL_USER or EMAIL_PASS is missing.');
+    console.error('   EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'MISSING');
+    console.error('   EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'MISSING');
+    return { success: false, error: 'Email credentials not configured' };
+  }
+
+  console.log('📧 Attempting to send verification email to:', email);
+  console.log('   Using EMAIL_USER:', process.env.EMAIL_USER);
+
   const transporter = createTransporter();
 
   const verificationUrl = `${frontendUrl}/verify-email/${token}`;
@@ -68,10 +79,11 @@ export const sendVerificationEmail = async (email, username, token, frontendUrl)
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Verification email sent:', info.messageId);
+    console.log('✅ Verification email sent successfully:', info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('❌ Error sending verification email:', error);
+    console.error('❌ Error sending verification email:', error.message);
+    console.error('   Full error:', error);
     return { success: false, error: error.message };
   }
 };
