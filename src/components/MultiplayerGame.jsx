@@ -1660,7 +1660,11 @@ const MultiplayerGame = ({
                     <div className="my-stats-row">
                       <span className="my-stat">{myStats?.wpm || 0} WPM</span>
                       <span className="my-stat-divider">•</span>
-                      <span className="my-stat">{myStats?.accuracy || 0}% Acc</span>
+                      {mode === 'random' ? (
+                        <span className="my-stat">{myStats?.completionTime ? `${myStats.completionTime.toFixed(1)}s` : 'DNF'}</span>
+                      ) : (
+                        <span className="my-stat">{myStats?.accuracy || 0}% Acc</span>
+                      )}
                       {isTierDetailed && (
                         <>
                           <span className="my-stat-divider">•</span>
@@ -1748,7 +1752,11 @@ const MultiplayerGame = ({
                         <span className="lb-col rank">Rank</span>
                         <span className="lb-col player">Player</span>
                         <span className="lb-col wpm">WPM</span>
-                        <span className="lb-col acc">Acc</span>
+                        {mode === 'random' ? (
+                          <span className="lb-col acc">Time</span>
+                        ) : (
+                          <span className="lb-col acc">Acc</span>
+                        )}
                         <span className="lb-col score">Score</span>
                       </div>
                       {leaderboard.map((player, idx) => {
@@ -1791,7 +1799,11 @@ const MultiplayerGame = ({
                               {player.isMe && <span className="you-tag">YOU</span>}
                             </span>
                             <span className="lb-col wpm">{player.wpm || 0}</span>
-                            <span className="lb-col acc">{typeof player.accuracy === 'number' ? `${player.accuracy}%` : '--'}</span>
+                            {mode === 'random' ? (
+                              <span className="lb-col acc">{player.completionTime ? `${player.completionTime.toFixed(1)}s` : 'DNF'}</span>
+                            ) : (
+                              <span className="lb-col acc">{typeof player.accuracy === 'number' ? `${player.accuracy}%` : '--'}</span>
+                            )}
                             <span className="lb-col score">
                               <span className={`score-badge ${isPlayerTied ? 'tied' : ''}`}>{gameScores[player.id] || 0}</span>
                             </span>
