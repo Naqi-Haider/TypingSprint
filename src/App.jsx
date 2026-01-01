@@ -1,12 +1,14 @@
 import './styles/App.css';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import GameEngine from './components/GameEngine';
 import ParagraphEngine from './components/ParagraphEngine';
 import HomePage from './components/HomePage';
 import LobbyRoom from './components/LobbyRoom';
 import TerminalLoader from './components/TerminalLoader';
+import NotFound from './components/NotFound';
+import GameModal from './components/GameModal';
 import { AuthProvider, AuthModal } from './components/AuthSystem';
 
 // Theme mapping - defined outside component to avoid recreation
@@ -21,12 +23,14 @@ const THEME_CLASSES = {
 
 function AppContent() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [resetKey, setResetKey] = useState(0);
   const [currentView, setCurrentView] = useState('home');
   const [gameMode, setGameMode] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGameReady, setIsGameReady] = useState(false);
   const [currentTheme, setCurrentTheme] = useState('retro');
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   // Load and apply saved theme on mount
   useEffect(() => {
@@ -64,6 +68,20 @@ function AppContent() {
 
   // Memoized event handlers
   const handleLogoClick = useCallback(() => {
+    // Check if user is in a lobby - show confirmation
+    if (location.pathname.startsWith('/lobby/')) {
+      setShowExitConfirm(true);
+      return;
+    }
+    setCurrentView('home');
+    setIsLoading(false);
+    setIsGameReady(false);
+    setResetKey(prev => prev + 1);
+    navigate('/');
+  }, [navigate, location.pathname]);
+
+  const confirmExit = useCallback(() => {
+    setShowExitConfirm(false);
     setCurrentView('home');
     setIsLoading(false);
     setIsGameReady(false);
@@ -126,9 +144,31 @@ function AppContent() {
                 currentTheme={currentTheme}
               />
             } />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
       </div>
+
+      {/* Lobby Exit Confirmation Modal */}
+      <GameModal
+        isOpen={showExitConfirm}
+        onClose={() => setShowExitConfirm(false)}
+        title="Leave Lobby?"
+        message="Are you sure you want to leave? You will disconnect from the current game session."
+        type="confirm"
+        buttons={[
+          {
+            label: 'Stay',
+            variant: 'secondary',
+            onClick: () => setShowExitConfirm(false)
+          },
+          {
+            label: 'Leave',
+            variant: 'danger',
+            onClick: confirmExit
+          }
+        ]}
+      />
     </div>
   );
 }

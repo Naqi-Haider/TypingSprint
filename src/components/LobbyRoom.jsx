@@ -7,6 +7,7 @@ import { io } from 'socket.io-client';
 import { SOCKET_URL } from '../config';
 import MultiplayerGame from './MultiplayerGame';
 import GameModal from './GameModal';
+import Toast from './Toast';
 import '../styles/LobbyRoom.css';
 
 // Theme class mapping
@@ -91,6 +92,7 @@ const LobbyRoom = ({
   const [actualGameMode, setActualGameMode] = useState(gameMode || 'random'); // Track actual game mode
   const [allPlayersReady, setAllPlayersReady] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState(null); // For Profile Modal
+  const [toastMessage, setToastMessage] = useState(null); // Toast notification for player leave
 
   // GameModal states
   const [modalState, setModalState] = useState({
@@ -207,8 +209,14 @@ const LobbyRoom = ({
     // Listen for player left event (Task 4: Live updates)
     newSocket.on('player_left', (data) => {
       console.log('Player left:', data);
-      // Remove player from list immediately
-      setPlayers(prev => prev.filter(p => p.id !== data.playerId));
+      // Find player name before removing
+      setPlayers(prev => {
+        const leavingPlayer = prev.find(p => p.id === data.playerId);
+        if (leavingPlayer) {
+          setToastMessage(`${leavingPlayer.name || 'A player'} left the lobby`);
+        }
+        return prev.filter(p => p.id !== data.playerId);
+      });
     });
 
     // Listen for player status updates (in game / in lobby)
@@ -1259,6 +1267,16 @@ const LobbyRoom = ({
         type={modalState.type}
         buttons={modalState.buttons}
       />
+
+      {/* Toast for player leave notifications */}
+      {toastMessage && (
+        <Toast
+          message={toastMessage}
+          type="info"
+          duration={3000}
+          onClose={() => setToastMessage(null)}
+        />
+      )}
     </>
   );
 };

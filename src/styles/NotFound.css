@@ -1,0 +1,63 @@
+.not-found-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+  padding: 2rem;
+}
+
+.not-found-content {
+  text-align: center;
+  max-width: 500px;
+}
+
+.not-found-code {
+  font-size: 8rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dim) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
+  line-height: 1;
+  text-shadow: 0 0 40px var(--primary-glow);
+}
+
+.not-found-title {
+  font-size: 1.8rem;
+  color: var(--text-primary);
+  margin: 1rem 0 0.5rem;
+  font-weight: 600;
+}
+
+.not-found-message {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.not-found-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.75rem;
+  background: var(--primary);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.not-found-btn:hover {
+  background: var(--primary-bright);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px var(--primary-glow);
+}
+
+.not-found-btn svg {
+  stroke: currentColor;
+}
