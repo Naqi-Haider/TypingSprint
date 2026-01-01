@@ -35,7 +35,7 @@ export const usePlayTimeTracker = (isPlaying = false) => {
 
         // Sync to backend
         try {
-          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
           await fetch(`${API_URL}/stats/update-playtime`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -68,7 +68,7 @@ export const usePlayTimeTracker = (isPlaying = false) => {
         const totalTime = accumulatedTimeRef.current + sessionTime;
 
         // Async sync (fire and forget)
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
         fetch(`${API_URL}/stats/update-playtime`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
