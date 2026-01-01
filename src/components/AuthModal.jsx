@@ -84,7 +84,7 @@ const AuthModal = () => {
               {/* Left Column - Guest */}
               <div className="auth-guest-column">
                 <svg className="guest-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <h3 className="guest-title">Quick Play</h3>
                 <p className="guest-subtitle">Jump straight into the action. No account needed.</p>
@@ -134,7 +134,7 @@ const AuthModal = () => {
                   </button>
                 </form>
                 <p className="auth-toggle-link">
-                  New here? <span onClick={() => setMode('signup')}>Create Account</span>
+                  New here? <span onClick={() => { clearError(); setLocalError(''); setMode('signup'); }}>Create Account</span>
                 </p>
               </div>
             </div>
@@ -179,11 +179,11 @@ const AuthModal = () => {
               <div className="auth-footer">
                 <p>
                   Don't have an account?{' '}
-                  <span className="auth-link" onClick={() => setMode('signup')}>
+                  <span className="auth-link" onClick={() => { clearError(); setLocalError(''); setMode('signup'); }}>
                     Sign up
                   </span>
                 </p>
-                <span className="auth-link" onClick={() => setMode('choice')}>
+                <span className="auth-link" onClick={() => { clearError(); setLocalError(''); setMode('choice'); }}>
                   ← Back
                 </span>
               </div>
@@ -238,11 +238,11 @@ const AuthModal = () => {
               <div className="auth-footer">
                 <p>
                   Already have an account?{' '}
-                  <span className="auth-link" onClick={() => setMode('login')}>
+                  <span className="auth-link" onClick={() => { clearError(); setLocalError(''); setMode('login'); }}>
                     Login
                   </span>
                 </p>
-                <span className="auth-link" onClick={() => setMode('choice')}>
+                <span className="auth-link" onClick={() => { clearError(); setLocalError(''); setMode('choice'); }}>
                   ← Back
                 </span>
               </div>
