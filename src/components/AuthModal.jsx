@@ -56,8 +56,16 @@ const AuthModal = () => {
       setLocalError('Password must be at least 6 characters');
       return;
     }
-    await signup(formData.name, formData.email, formData.password);
-    // If signup succeeds, modal will close automatically via auth state change
+    try {
+      const result = await signup(formData.name, formData.email, formData.password);
+      // If signup requires verification, show success message
+      if (result?.requiresVerification) {
+        setMode('verification-sent');
+      }
+      // Otherwise modal will close automatically via auth state change
+    } catch (err) {
+      // Error is already set in AuthContext
+    }
   };
 
   const handleGuestContinue = () => {
@@ -245,6 +253,30 @@ const AuthModal = () => {
                 <span className="auth-link" onClick={() => { clearError(); setLocalError(''); setFormData({ name: '', email: '', password: '' }); setMode('choice'); }}>
                   ← Back
                 </span>
+              </div>
+            </div>
+          )}
+
+          {mode === 'verification-sent' && (
+            <div className="auth-form-container verification-sent">
+              <div className="verification-sent-content">
+                <svg className="verification-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+                <h2 className="auth-title">Check Your Email</h2>
+                <p className="verification-message">
+                  We've sent a verification link to <strong>{formData.email}</strong>
+                </p>
+                <p className="verification-note">
+                  Click the link in the email to verify your account and start typing!
+                </p>
+                <button
+                  className="auth-btn primary"
+                  onClick={() => { setMode('choice'); setFormData({ name: '', email: '', password: '' }); }}
+                >
+                  Back to Login
+                </button>
               </div>
             </div>
           )}

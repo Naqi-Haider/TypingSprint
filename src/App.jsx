@@ -9,6 +9,7 @@ import LobbyRoom from './components/LobbyRoom';
 import TerminalLoader from './components/TerminalLoader';
 import NotFound from './components/NotFound';
 import GameModal from './components/GameModal';
+import VerifyEmail from './components/VerifyEmail';
 import { AuthProvider, AuthModal } from './components/AuthSystem';
 
 // Theme mapping - defined outside component to avoid recreation
@@ -144,6 +145,7 @@ function AppContent() {
                 currentTheme={currentTheme}
               />
             } />
+            <Route path="/verify-email/:token" element={<VerifyEmail />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

@@ -58,6 +58,14 @@ export const AuthProvider = ({ children }) => {
       // Check for credential errors (response received but not ok)
       if (!response.ok) {
         const data = await response.json();
+
+        // Check if email verification is required
+        if (data.requiresVerification) {
+          setLoading(false);
+          setError('Please verify your email before logging in. Check your inbox for the verification link.');
+          throw new Error('Email not verified');
+        }
+
         const errorMessage = data.message ||
           (response.status === 401 ? 'Invalid email or password' :
             response.status === 400 ? 'Please provide valid credentials' :
@@ -150,8 +158,20 @@ export const AuthProvider = ({ children }) => {
 
       const data = await response.json();
 
+      // Check if email verification is required
+      if (data.success && data.requiresVerification) {
+        setLoading(false);
+        // Don't auto-login, show success message about verification
+        return {
+          success: true,
+          requiresVerification: true,
+          message: data.message || 'Please check your email to verify your account.',
+          email: data.email
+        };
+      }
+
       if (data.success && data.user) {
-        // Auto-login after successful registration
+        // Auto-login after successful registration (for non-verification flow)
         const userData = {
           id: data.user.id,
           name: data.user.username,

@@ -1,0 +1,93 @@
+.verify-email-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+  padding: 2rem;
+}
+
+.verify-email-content {
+  text-align: center;
+  max-width: 500px;
+  padding: 3rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+}
+
+.verify-icon {
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.verify-icon.verifying svg {
+  color: var(--primary);
+  animation: spin 1s linear infinite;
+}
+
+.verify-icon.success svg {
+  color: #22c55e;
+}
+
+.verify-icon.error svg {
+  color: #ef4444;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.verify-spinner {
+  animation: spin 1s linear infinite;
+}
+
+.verify-title {
+  font-size: 1.75rem;
+  color: var(--text-primary);
+  margin: 0 0 1rem;
+  font-weight: 700;
+}
+
+.verify-message {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+.verify-welcome {
+  color: var(--primary);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.verify-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 2rem;
+  background: var(--primary);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 1rem;
+}
+
+.verify-btn:hover {
+  background: var(--primary-bright);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px var(--primary-glow);
+}
