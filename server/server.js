@@ -9,6 +9,7 @@ import connectDB from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
 import statsRoutes from './routes/statsRoutes.js';
 import User from './models/User.js';
+import { supabaseServer } from './config/supabase.js';
 
 // Load environment variables
 dotenv.config();
@@ -381,6 +382,22 @@ io.on('connection', (socket) => {
       };
 
       lobbies.set(roomId, lobby);
+
+      // Optionally sync to Supabase Postgres lobbies table
+      if (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL) {
+        supabaseServer.from('lobbies').upsert({
+          room_id: roomId,
+          host_id: hostUser?.id || null,
+          host_name: hostUser?.name || 'Host',
+          game_mode: mode,
+          max_players: maxPlayers,
+          is_protected: !!passwordHash,
+          password_hash: passwordHash,
+          status: 'waiting'
+        }).then(({ error }) => {
+          if (error) console.error('Error syncing lobby to Supabase:', error.message);
+        });
+      }
 
       // Create session token for host (they don't need password validation)
       const sessionToken = createLobbySession(roomId);

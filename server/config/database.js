@@ -2,12 +2,14 @@ import mongoose from 'mongoose';
 
 const connectDB = async () => {
   try {
-    // Check for MONGO_URI or MONGODB_URI (support both)
-    const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/typing-sprint';
+    const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
+    
+    if (!mongoURI) {
+      console.log('ℹ️ No MONGO_URI provided. Skipping MongoDB connection (Supabase active).');
+      return;
+    }
 
     console.log('🔄 Attempting MongoDB connection...');
-    console.log(`   URI: ${mongoURI.replace(/\/\/[^:]+:[^@]+@/, '//<credentials>@')}`);
-
     await mongoose.connect(mongoURI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
@@ -16,7 +18,6 @@ const connectDB = async () => {
     console.log('✅ MongoDB Connected Successfully');
     console.log(`   Database: ${mongoose.connection.name}`);
     
-    // Add connection event listeners for debugging
     mongoose.connection.on('error', (err) => {
       console.error('❌ MongoDB connection error:', err);
     });
@@ -25,13 +26,9 @@ const connectDB = async () => {
       console.warn('⚠️ MongoDB disconnected');
     });
 
-    mongoose.connection.on('reconnected', () => {
-      console.log('🔄 MongoDB reconnected');
-    });
-
   } catch (error) {
-    console.error('❌ MongoDB Connection Error:', error.message);
-    process.exit(1);
+    console.warn('⚠️ MongoDB Connection Error:', error.message);
+    console.warn('⚠️ Continuing execution (Supabase Postgres will be used).');
   }
 };
 

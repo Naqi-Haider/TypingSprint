@@ -1,8 +1,8 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { API_URL } from '../config';
+import { supabase } from '../supabaseClient';
 
 const AuthContext = createContext(null);
-
-import { API_URL } from '../config';
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -20,7 +20,6 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Check if user has visited before
     const hasVisited = localStorage.getItem('hasVisited');
     const savedUser = localStorage.getItem('user');
 
@@ -28,55 +27,129 @@ export const AuthProvider = ({ children }) => {
       setIsFirstVisit(true);
     }
 
-    if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
-      } catch (error) {
-        console.error('Error parsing saved user:', error);
-      }
-    }
+    if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL !== 'YOUR_SUPABASE_URL_HERE') {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          fetchSupabaseUserData(session.user.id);
+        } else if (savedUser) {
+          try {
+            setUser(JSON.parse(savedUser));
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        setLoading(false);
+      });
 
-    setLoading(false);
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (session?.user) {
+          await fetchSupabaseUserData(session.user.id);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          localStorage.removeItem('user');
+        }
+      });
+
+      return () => subscription.unsubscribe();
+    } else {
+      if (savedUser) {
+        try {
+          setUser(JSON.parse(savedUser));
+        } catch (error) {
+          console.error('Error parsing saved user:', error);
+        }
+      }
+      setLoading(false);
+    }
   }, []);
+
+  const fetchSupabaseUserData = async (userId) => {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      const { data: stats } = await supabase
+        .from('user_stats')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      const userData = {
+        id: userId,
+        name: profile?.username || 'Typist',
+        email: profile?.email || '',
+        avatar: profile?.avatar || 'T',
+        avatarUrl: profile?.avatar_url || '',
+        bannerUrl: profile?.banner_url || '',
+        bio: profile?.bio || '',
+        theme: profile?.theme || 'retro',
+        avatarPosition: profile?.avatar_position || { x: 50, y: 50 },
+        bannerPosition: profile?.banner_position || { x: 50, y: 50 },
+        bestWPM: stats?.best_wpm || 0,
+        avgWPM: stats?.avg_wpm || 0,
+        matchesWon: stats?.matches_won || 0,
+        gamesPlayed: stats?.games_played || 0,
+        accuracy: stats?.accuracy || 0,
+        hoursPlayed: stats?.hours_played || 0,
+        joinedDate: profile?.created_at || new Date().toISOString()
+      };
+
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      return userData;
+    } catch (err) {
+      console.error('Error fetching Supabase user data:', err);
+      return null;
+    }
+  };
 
   const login = async (email, password) => {
     try {
       setError(null);
       setLoading(true);
 
-      // NOTE: Check vite.config.js for proxy configuration if needed
+      if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL !== 'YOUR_SUPABASE_URL_HERE') {
+        const { data, error: authError } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (authError) {
+          setLoading(false);
+          const errorMsg = authError.message.includes('Email not confirmed')
+            ? 'Please verify your email address before logging in.'
+            : authError.message;
+          setError(errorMsg);
+          throw new Error(errorMsg);
+        }
+
+        const userData = await fetchSupabaseUserData(data.user.id);
+        localStorage.setItem('hasVisited', 'true');
+        setIsFirstVisit(false);
+        setShowAuthModal(false);
+        setLoading(false);
+        return { success: true, user: userData };
+      }
+
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Include cookies/sessions
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email, password }),
       });
 
-      // Check for credential errors (response received but not ok)
       if (!response.ok) {
         const data = await response.json();
-
-        // Check if email verification is required
-        if (data.requiresVerification) {
-          setLoading(false);
-          setError('Please verify your email before logging in. Check your inbox for the verification link.');
-          throw new Error('Email not verified');
-        }
-
-        const errorMessage = data.message ||
-          (response.status === 401 ? 'Invalid email or password' :
-            response.status === 400 ? 'Please provide valid credentials' :
-              'Login failed');
+        const errorMessage = data.message || 'Login failed';
         setLoading(false);
         setError(errorMessage);
         throw new Error(errorMessage);
       }
 
       const data = await response.json();
-
       if (data.success && data.user) {
         const userData = {
           id: data.user.id,
@@ -103,7 +176,6 @@ export const AuthProvider = ({ children }) => {
         setIsFirstVisit(false);
         setShowAuthModal(false);
         setLoading(false);
-
         return { success: true, user: userData };
       }
 
@@ -111,17 +183,6 @@ export const AuthProvider = ({ children }) => {
 
     } catch (err) {
       setLoading(false);
-      // Log error for debugging
-      console.error('Login error:', err.message);
-
-      // Network error (server unreachable)
-      if (err.name === 'TypeError' || err.message === 'Failed to fetch') {
-        const networkError = 'Server unreachable. Is the backend running?';
-        setError(networkError);
-        console.error('Network error detected:', networkError);
-        throw new Error(networkError);
-      }
-      // Credential or other errors
       setError(err.message || 'Login failed. Please try again.');
       throw err;
     }
@@ -132,46 +193,60 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       setLoading(true);
 
-      const response = await fetch(`${API_URL}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Include cookies/sessions
-        body: JSON.stringify({
-          username: name,
+      if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL !== 'YOUR_SUPABASE_URL_HERE') {
+        const { data, error: authError } = await supabase.auth.signUp({
           email,
           password,
-        }),
+          options: {
+            data: { username: name },
+            emailRedirectTo: `${window.location.origin}/verify-email`
+          }
+        });
+
+        if (authError) {
+          setLoading(false);
+          setError(authError.message);
+          throw authError;
+        }
+
+        if (data.user) {
+          // If Supabase has email confirmation enabled, session is null until verified
+          if (!data.session) {
+            setLoading(false);
+            return {
+              success: true,
+              requiresVerification: true,
+              email: data.user.email,
+              message: 'Please check your email for the verification link.'
+            };
+          }
+
+          const userData = await fetchSupabaseUserData(data.user.id);
+          localStorage.setItem('hasVisited', 'true');
+          setIsFirstVisit(false);
+          setShowAuthModal(false);
+          setLoading(false);
+          return { success: true, user: userData };
+        }
+      }
+
+      const response = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username: name, email, password }),
       });
 
-      // Check for credential errors (response received but not ok)
       if (!response.ok) {
         const data = await response.json();
-        const errorMessage = data.message ||
-          (response.status === 400 ? 'Invalid registration data' :
-            'Registration failed');
+        const errorMessage = data.message || 'Registration failed';
         setLoading(false);
         setError(errorMessage);
         throw new Error(errorMessage);
       }
 
       const data = await response.json();
-
-      // Check if email verification is required
-      if (data.success && data.requiresVerification) {
-        setLoading(false);
-        // Don't auto-login, show success message about verification
-        return {
-          success: true,
-          requiresVerification: true,
-          message: data.message || 'Please check your email to verify your account.',
-          email: data.email
-        };
-      }
-
       if (data.success && data.user) {
-        // Auto-login after successful registration (for non-verification flow)
         const userData = {
           id: data.user.id,
           name: data.user.username,
@@ -197,7 +272,6 @@ export const AuthProvider = ({ children }) => {
         setIsFirstVisit(false);
         setShowAuthModal(false);
         setLoading(false);
-
         return { success: true, user: userData };
       }
 
@@ -205,23 +279,15 @@ export const AuthProvider = ({ children }) => {
 
     } catch (err) {
       setLoading(false);
-      // Log error for debugging
-      console.error('Signup error:', err.message);
-
-      // Network error (server unreachable)
-      if (err.name === 'TypeError' || err.message === 'Failed to fetch') {
-        const networkError = 'Server unreachable. Is the backend running?';
-        setError(networkError);
-        console.error('Network error detected:', networkError);
-        throw new Error(networkError);
-      }
-      // Credential or other errors
       setError(err.message || 'Registration failed. Please try again.');
       throw err;
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL !== 'YOUR_SUPABASE_URL_HERE') {
+      await supabase.auth.signOut();
+    }
     setUser(null);
     localStorage.removeItem('user');
   };
@@ -233,10 +299,11 @@ export const AuthProvider = ({ children }) => {
     setIsFirstVisit(false);
   };
 
-  // Refresh current user data from backend (for real-time stats sync)
   const refreshCurrentUser = async () => {
-    if (!user || user === 'guest') {
-      return null;
+    if (!user || user === 'guest') return null;
+
+    if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL !== 'YOUR_SUPABASE_URL_HERE') {
+      return await fetchSupabaseUserData(user.id);
     }
 
     try {
@@ -245,38 +312,31 @@ export const AuthProvider = ({ children }) => {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include'
       });
-
-      if (!response.ok) {
-        console.error('Failed to refresh user data');
-        return null;
-      }
-
-      const data = await response.json();
-
-      if (data.success && data.user) {
-        const userData = {
-          id: data.user.id,
-          name: data.user.username,
-          email: data.user.email,
-          avatar: data.user.avatar,
-          avatarUrl: data.user.avatarUrl,
-          bannerUrl: data.user.bannerUrl,
-          bio: data.user.bio,
-          bestWPM: data.user.stats?.bestWPM || 0,
-          matchesWon: data.user.stats?.matchesWon || 0,
-          gamesPlayed: data.user.stats?.gamesPlayed || 0,
-          accuracy: data.user.stats?.accuracy || 0,
-          hoursPlayed: data.user.stats?.hoursPlayed || 0,
-          joinedDate: data.user.joinedDate,
-          theme: data.user.theme,
-          avatarPosition: data.user.avatarPosition,
-          bannerPosition: data.user.bannerPosition
-        };
-
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-        console.log('✅ User data refreshed from backend');
-        return userData;
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.user) {
+          const userData = {
+            id: data.user.id,
+            name: data.user.username,
+            email: data.user.email,
+            avatar: data.user.avatar,
+            avatarUrl: data.user.avatarUrl,
+            bannerUrl: data.user.bannerUrl,
+            bio: data.user.bio,
+            bestWPM: data.user.stats?.bestWPM || 0,
+            matchesWon: data.user.stats?.matchesWon || 0,
+            gamesPlayed: data.user.stats?.gamesPlayed || 0,
+            accuracy: data.user.stats?.accuracy || 0,
+            hoursPlayed: data.user.stats?.hoursPlayed || 0,
+            joinedDate: data.user.joinedDate,
+            theme: data.user.theme,
+            avatarPosition: data.user.avatarPosition,
+            bannerPosition: data.user.bannerPosition
+          };
+          setUser(userData);
+          localStorage.setItem('user', JSON.stringify(userData));
+          return userData;
+        }
       }
     } catch (err) {
       console.error('Error refreshing user data:', err);
@@ -285,51 +345,113 @@ export const AuthProvider = ({ children }) => {
   };
 
   const updateUserStats = async (stats) => {
-    if (user && user !== 'guest') {
-      const updatedUser = { ...user, ...stats };
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+    if (!user || user === 'guest') return;
 
-      // Sync with backend
+    const updatedUser = { ...user, ...stats };
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+
+    if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL !== 'YOUR_SUPABASE_URL_HERE') {
       try {
-        await fetch(`${API_URL}/auth/profile`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            userId: user.id,
+        await supabase
+          .from('profiles')
+          .update({
             username: stats.name,
             bio: stats.bio,
-            avatarUrl: stats.avatarUrl,
-            bannerUrl: stats.bannerUrl,
+            avatar_url: stats.avatarUrl,
+            banner_url: stats.bannerUrl,
             theme: stats.theme,
-            avatarPosition: stats.avatarPosition,
-            bannerPosition: stats.bannerPosition
+            avatar_position: stats.avatarPosition,
+            banner_position: stats.bannerPosition
           })
-        });
-        console.log('✅ Profile synced to backend');
+          .eq('id', user.id);
+        console.log('✅ Profile synced to Supabase Postgres');
       } catch (err) {
-        console.error('Failed to sync profile to backend:', err);
+        console.error('Failed to sync profile to Supabase:', err);
       }
-    }
-  };
-
-  // Save game stats to backend
-  const saveGameStats = async (gameStats) => {
-    // Don't save for guest users
-    if (!user || user === 'guest') {
-      console.log('📊 Guest user - stats not saved to server');
-      return { success: false, reason: 'guest' };
+      return;
     }
 
     try {
-      console.log('📊 Saving game stats to server:', gameStats);
+      await fetch(`${API_URL}/auth/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          userId: user.id,
+          username: stats.name,
+          bio: stats.bio,
+          avatarUrl: stats.avatarUrl,
+          bannerUrl: stats.bannerUrl,
+          theme: stats.theme,
+          avatarPosition: stats.avatarPosition,
+          bannerPosition: stats.bannerPosition
+        })
+      });
+    } catch (err) {
+      console.error('Failed to sync profile to backend:', err);
+    }
+  };
 
+  const saveGameStats = async (gameStats) => {
+    if (!user || user === 'guest') return { success: false, reason: 'guest' };
+
+    if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL !== 'YOUR_SUPABASE_URL_HERE') {
+      try {
+        const { data: currentStats } = await supabase
+          .from('user_stats')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        const currentGamesPlayed = currentStats?.games_played || 0;
+        const currentTotalWords = currentStats?.total_words || 0;
+        const currentAvgWPM = currentStats?.avg_wpm || 0;
+        const currentBestWPM = currentStats?.best_wpm || 0;
+        const currentAccuracy = currentStats?.accuracy || 0;
+
+        const newGamesPlayed = currentGamesPlayed + 1;
+        const newTotalWords = currentTotalWords + (gameStats.wordsTyped || 0);
+        const newAvgWPM = Math.round(((currentAvgWPM * currentGamesPlayed) + gameStats.wpm) / newGamesPlayed);
+        const newBestWPM = Math.max(currentBestWPM, gameStats.wpm);
+        const newAccuracy = Math.round(((currentAccuracy * currentGamesPlayed) + gameStats.accuracy) / newGamesPlayed);
+
+        const { data: updatedStats, error: updateErr } = await supabase
+          .from('user_stats')
+          .upsert({
+            user_id: user.id,
+            games_played: newGamesPlayed,
+            total_words: newTotalWords,
+            avg_wpm: newAvgWPM,
+            best_wpm: newBestWPM,
+            accuracy: newAccuracy
+          })
+          .select()
+          .single();
+
+        if (updateErr) throw updateErr;
+
+        const updatedUser = {
+          ...user,
+          bestWPM: newBestWPM,
+          avgWPM: newAvgWPM,
+          gamesPlayed: newGamesPlayed,
+          accuracy: newAccuracy
+        };
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+
+        return { success: true, stats: updatedStats };
+      } catch (err) {
+        console.error('❌ Supabase stats save error:', err.message);
+        return { success: false, error: err.message };
+      }
+    }
+
+    try {
       const response = await fetch(`${API_URL}/stats/save`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           userId: user.id,
@@ -341,16 +463,11 @@ export const AuthProvider = ({ children }) => {
 
       if (!response.ok) {
         const data = await response.json();
-        console.error('❌ Failed to save stats:', data.message);
         return { success: false, error: data.message };
       }
 
       const data = await response.json();
-
       if (data.success) {
-        console.log('✅ Stats saved successfully:', data.stats);
-
-        // Update local user with new stats
         const updatedUser = {
           ...user,
           bestWPM: data.stats.bestWPM,
@@ -360,22 +477,15 @@ export const AuthProvider = ({ children }) => {
         };
         setUser(updatedUser);
         localStorage.setItem('user', JSON.stringify(updatedUser));
-
         return { success: true, stats: data.stats };
       }
-
-      return { success: false, error: 'Unknown error' };
-
     } catch (err) {
       console.error('❌ Error saving stats:', err.message);
-      // Don't throw - just log and continue, stats saving shouldn't break the game
       return { success: false, error: err.message };
     }
   };
 
-  const clearError = () => {
-    setError(null);
-  };
+  const clearError = () => setError(null);
 
   const value = {
     user,

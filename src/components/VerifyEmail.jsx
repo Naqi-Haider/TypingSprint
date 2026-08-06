@@ -2,6 +2,7 @@ import React, { useState, useEffect, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { API_URL } from '../config';
+import { supabase } from '../supabaseClient';
 import '../styles/VerifyEmail.css';
 
 const VerifyEmail = memo(() => {
@@ -13,9 +14,38 @@ const VerifyEmail = memo(() => {
 
   useEffect(() => {
     const verifyEmail = async () => {
+      // 1. Check if Supabase session or hash is present
+      if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL !== 'YOUR_SUPABASE_URL_HERE') {
+        try {
+          const { data: { session }, error } = await supabase.auth.getSession();
+          if (session?.user) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('username')
+              .eq('id', session.user.id)
+              .single();
+
+            setStatus('success');
+            setMessage('Your email has been successfully verified with Supabase!');
+            setUsername(profile?.username || session.user.user_metadata?.username || '');
+            return;
+          }
+
+          if (error) {
+            setStatus('error');
+            setMessage(error.message || 'Supabase verification failed.');
+            return;
+          }
+        } catch (err) {
+          console.error('Supabase verification error:', err);
+        }
+      }
+
+      // 2. Fallback to Express token endpoint if token URL param is present
       if (!token) {
+        // If no token and no session, set error or instructions
         setStatus('error');
-        setMessage('Invalid verification link');
+        setMessage('Invalid or missing verification link.');
         return;
       }
 
@@ -101,7 +131,7 @@ const VerifyEmail = memo(() => {
             className="verify-btn"
             onClick={() => navigate('/')}
           >
-            {status === 'success' ? 'Go to Login' : 'Go Home'}
+            {status === 'success' ? 'Go to Typing Sprint' : 'Go Home'}
           </button>
         )}
       </motion.div>
